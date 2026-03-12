@@ -4,6 +4,9 @@ from datetime import datetime
 # Create your views here.
 from django.http import HttpResponse
 
+def home(request):
+    return HttpResponse("Hello, world!")
+
 def hello_there(request, name):
     print(request.build_absolute_uri()) #optional
     return render(
