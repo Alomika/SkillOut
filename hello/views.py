@@ -295,6 +295,17 @@ def scrape_text(request):
         return JsonResponse({"error": "Invalid JSON body."}, status=400)
 
     url = (payload.get("url") or "").strip()
+    from_semester = payload.get("fromSemester", 1)
+    to_semester = payload.get("toSemester", 4)
+
+    try:
+        from_semester = int(from_semester)
+        to_semester = int(to_semester)
+    except (TypeError, ValueError):
+        return JsonResponse({"error": "fromSemester and toSemester must be numbers."}, status=400)
+
+    if from_semester > to_semester:
+        return JsonResponse({"error": "fromSemester cannot be greater than toSemester."}, status=400)
     if not url:
         return JsonResponse({"error": "Field 'url' is required."}, status=400)
     if not (url.startswith("http://") or url.startswith("https://")):
@@ -315,13 +326,84 @@ def scrape_text(request):
 
     output_dir = Path(settings.BASE_DIR) / "scraped_text"
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_file = output_dir / "latest_scrape.txt"
-    output_file.write_text(text, encoding="utf-8")
+    txt_output_file = output_dir / "latest_scrape.txt"
+    txt_output_file.write_text(text, encoding="utf-8")
+
+    try:
+        import ollama
+    except ImportError:
+        return JsonResponse(
+            {"error": "Ollama Python package is not installed. Install it with: pip install ollama"},
+            status=500,
+        )
+
+    prompt = (
+        "Extract only study subject names from semesters "
+        f"{from_semester} to {to_semester} from the provided webpage text. "
+        "Do not translate or modify original subject text. "
+        "Return strict JSON only in this format: "
+        '{"study_subjects": ["subject 1", "subject 2"]}. '
+        "No markdown, no explanation.\n\n"
+        f"Webpage text:\n{text}"
+    )
+
+    try:
+        ollama_response = ollama.chat(
+            model="llama3",
+            messages=[{"role": "user", "content": prompt}],
+        )
+    except Exception as exc:
+        return JsonResponse({"error": f"Ollama request failed: {exc}"}, status=500)
+
+    raw_content = ollama_response.get("message", {}).get("content", "").strip()
+
+    if raw_content.startswith("```"):
+        raw_content = raw_content.strip("`")
+        if raw_content.lower().startswith("json"):
+            raw_content = raw_content[4:].strip()
+
+    parsed = None
+    try:
+        parsed = json.loads(raw_content)
+    except json.JSONDecodeError:
+        start = raw_content.find("{")
+        end = raw_content.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            try:
+                parsed = json.loads(raw_content[start : end + 1])
+            except json.JSONDecodeError:
+                parsed = None
+
+    subjects = []
+    if isinstance(parsed, dict) and isinstance(parsed.get("study_subjects"), list):
+        subjects = [str(item).strip() for item in parsed["study_subjects"] if str(item).strip()]
+    else:
+        subjects = [
+            line.strip("-• \t")
+            for line in raw_content.splitlines()
+            if line.strip("-• \t")
+        ]
+
+    json_output = {
+        "url": url,
+        "from_semester": from_semester,
+        "to_semester": to_semester,
+        "study_subjects": subjects,
+    }
+
+    json_output_file = output_dir / "latest_subjects.json"
+    json_output_file.write_text(
+        json.dumps(json_output, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
 
     return JsonResponse(
         {
-            "message": "Scraped text saved successfully.",
-            "file": str(output_file.relative_to(settings.BASE_DIR)),
+            "message": "Scrape and AI extraction completed successfully.",
+            "file": str(txt_output_file.relative_to(settings.BASE_DIR)),
+            "json_file": str(json_output_file.relative_to(settings.BASE_DIR)),
             "characters": len(text),
+            "subjects_count": len(subjects),
+            "study_subjects": subjects,
         }
     )
