@@ -7,4 +7,5 @@ from hello import views
 
 urlpatterns = [
     path("", views.home, name="home"),
+    path("api/scrape-text/", views.scrape_text, name="scrape-text"),
 ]
