@@ -13,4 +13,6 @@ urlpatterns = [
     path("add-interest/", views.add_subject_interest, name="add_subject_interest"),
     path("student/<int:student_id>/subjects/", views.get_student_subjects, name="get_student_subjects"),
     path("api/scrape-text/", views.scrape_text, name="scrape-text"),
+    path("api/latest-subjects-fast/", views.latest_subjects_fast, name="latest-subjects-fast"),
+    path("api/save-subject-ratings/", views.save_subject_ratings, name="save-subject-ratings"),
 ]
