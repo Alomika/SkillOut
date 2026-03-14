@@ -15,6 +15,8 @@ from django.contrib.auth.models import User
 from .models import Student, Category, Subject, StudentSubject
 import json
 
+import os
+
 # Create your views here.
 
 def home(request):
@@ -417,3 +419,20 @@ def scrape_text(request):
             "study_subjects": subjects,
         }
     )
+
+
+# This view is for testing purposes to retrieve the latest scraped subjects from the JSON file.
+def get_latest_subjects(request):
+    # SVARBU: Failas yra 'scraped_text' aplanke, todėl turime jį įtraukti į kelią
+    file_path = os.path.join(settings.BASE_DIR, 'scraped_text', 'latest_subjects.json')
+    
+    if os.path.exists(file_path):
+        with open(file_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        return JsonResponse(data)
+    
+    # Jei failo nėra, grąžiname klaidą su tiksliu keliu (kad žinotume, kur jis ieško)
+    return JsonResponse({
+        "error": "File not found", 
+        "searched_at": str(file_path)
+    }, status=404)
