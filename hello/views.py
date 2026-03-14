@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
 from pathlib import Path
+import time
 
 import requests
 from bs4 import BeautifulSoup
@@ -313,11 +314,20 @@ def scrape_text(request):
     if not (url.startswith("http://") or url.startswith("https://")):
         return JsonResponse({"error": "URL must start with http:// or https://."}, status=400)
 
-    try:
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-    except requests.RequestException as exc:
-        return JsonResponse({"error": f"Failed to fetch URL: {exc}"}, status=400)
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            break
+        except requests.HTTPError as e:
+            return JsonResponse({"error": f"HTTP error: {e.response.status_code}"}, status=400)
+        except (requests.Timeout, requests.ConnectionError) as e:
+            if attempt == max_retries - 1:
+                return JsonResponse({"error": f"Failed after {max_retries} attempts: {e}"}, status=400)
+            time.sleep(1)
+        except requests.RequestException as e:
+            return JsonResponse({"error": f"Request failed: {e}"}, status=400)
 
     soup = BeautifulSoup(response.text, "html.parser")
 
