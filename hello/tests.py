@@ -164,7 +164,7 @@ class ScrapeSubjectsResponseTests(TestCase):
 		self.assertEqual(data["subjects_count"], 0)
 		self.assertEqual(
 			data["message"],
-			"Rezultatu nerasta pasirinktame semestru intervale.",
+			"No results found for the selected semester range.",
 		)
 
 
