@@ -14,6 +14,18 @@
             <button @click="removeSubject(index)" class="btn-delete" title="Remove subject">❌</button>
           </li>
         </ul>
+
+        <div class="add-subject-container">
+  <input 
+    v-model="newSubjectName" 
+    @keyup.enter="addSubject"
+    type="text" 
+    placeholder="Enter new subject name..." 
+    class="input-add"
+  />
+  <button @click="addSubject" class="btn-add">Add Subject</button>
+</div>
+
         <button @click="$router.push('/')" class="btn-back">Go Back</button>
       </div>
 
@@ -30,6 +42,7 @@ export default {
     return {
       subjects: [],
       loading: true,
+      newSubjectName: "",
     };
   },
   // --- ŠITA DALIS BUVO PRALEISTA ---
@@ -37,6 +50,13 @@ export default {
     removeSubject(index) {
       // Ištriname elementą iš masyvo
       this.subjects.splice(index, 1);
+    },
+    addSubject() {
+      const name = this.newSubjectName.trim();
+      if (name) {
+        this.subjects.push(name); // Pridedame į sąrašą
+        this.newSubjectName = ""; // Išvalome laukelį
+      }
     }
   },
   // --------------------------------
@@ -133,5 +153,37 @@ export default {
 .error-message {
   color: #d32f2f;
   font-weight: 600;
+}
+
+.add-subject-container {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background: #f1f5f9;
+  border-radius: 10px;
+}
+
+.input-add {
+  flex: 1;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #bfcad8;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.btn-add {
+  padding: 0.65rem 1.2rem;
+  background: #1b5e20; /* Žalia spalva pridėjimui */
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-add:hover {
+  background: #144316;
 }
 </style>
