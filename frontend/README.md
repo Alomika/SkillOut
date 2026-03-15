@@ -31,3 +31,5 @@
 - `index.html` – Entry HTML file
 - `vite.config.js` – Vite configuration
 <!-- noop commit marker -->
+<!-- noop commit marker -->
+<!-- noop commit marker -->
