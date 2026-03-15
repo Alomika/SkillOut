@@ -298,14 +298,23 @@ def scrape_text(request):
         return JsonResponse({"error": "Invalid JSON body."}, status=400)
 
     url = (payload.get("url") or "").strip()
-    from_semester = payload.get("fromSemester", 1)
-    to_semester = payload.get("toSemester", 4)
+    if "fromSemester" not in payload or "toSemester" not in payload:
+        return JsonResponse(
+            {"error": "Fields 'fromSemester' and 'toSemester' are required."},
+            status=400,
+        )
+
+    from_semester = payload.get("fromSemester")
+    to_semester = payload.get("toSemester")
 
     try:
         from_semester = int(from_semester)
         to_semester = int(to_semester)
     except (TypeError, ValueError):
         return JsonResponse({"error": "fromSemester and toSemester must be numbers."}, status=400)
+
+    if from_semester < 1 or to_semester < 1:
+        return JsonResponse({"error": "fromSemester and toSemester must be at least 1."}, status=400)
 
     if from_semester > to_semester:
         return JsonResponse({"error": "fromSemester cannot be greater than toSemester."}, status=400)
@@ -349,20 +358,39 @@ def scrape_text(request):
             status=500,
         )
 
+    # prompt = (
+    #     "Extract only study subject names from semesters "
+    #     f"{from_semester} to {to_semester} from the provided webpage text. "
+    #     f"That means study subjects are between text for {from_semester} semester to {to_semester + 1} semester. "
+    #     "Do not translate or modify original subject text. "
+    #     "Return strict JSON only in this format: "
+    #     '{"study_subjects": ["subject 1", "subject 2"]}. '
+    #     "No markdown, no explanation.\n\n"
+    #     f"Webpage text:\n{text}"
+    # )
+
     prompt = (
-        "Extract only study subject names from semesters "
-        f"{from_semester} to {to_semester} from the provided webpage text. "
-        "Do not translate or modify original subject text. "
-        "Return strict JSON only in this format: "
-        '{"study_subjects": ["subject 1", "subject 2"]}. '
-        "No markdown, no explanation.\n\n"
-        f"Webpage text:\n{text}"
-    )
+    "Task: Extract study subjects only from selected semesters.\n"
+    f"Selected semesters: {from_semester} to {to_semester} (inclusive).\n\n"
+    "Strict rules:\n"
+    "1) Include subject only if it is clearly listed under semester number "
+    f"{from_semester}..{to_semester}.\n"
+    "2) Exclude all subjects from any semester outside that range.\n"
+    "3) If semester is unclear, exclude it.\n"
+    "4) Keep original subject text exactly (no translation, no rewriting).\n"
+    "5) Remove duplicates.\n"
+    "6) Output ONLY valid JSON with one key exactly:\n"
+    '{"study_subjects":["...","..."]}\n'
+    "7) Do not output markdown, comments, explanations, or extra keys.\n\n"
+    "Webpage text:\n"
+    f"{text}"
+)
 
     try:
         ollama_response = ollama.chat(
             model="llama3",
             messages=[{"role": "user", "content": prompt}],
+            options={"temperature": 0, "top_p": 0.1}
         )
     except Exception as exc:
         return JsonResponse({"error": f"Ollama request failed: {exc}"}, status=500)
