@@ -16,3 +16,4 @@ class SubjectAdmin(admin.ModelAdmin):
 class StudentSubjectAdmin(admin.ModelAdmin):
     list_display = ('student', 'subject', 'interest')
     list_filter = ('interest',)
+# noop commit marker

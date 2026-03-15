@@ -641,3 +641,4 @@ def save_subject_ratings(request):
     ratings_file.write_text("\n".join(lines), encoding="utf-8")
 
     return JsonResponse({"message": f"Saved {len(lines)} ratings.", "count": len(lines)})
+# noop commit marker

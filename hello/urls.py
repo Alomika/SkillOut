@@ -16,3 +16,4 @@ urlpatterns = [
     path("api/latest-subjects-fast/", views.latest_subjects_fast, name="latest-subjects-fast"),
     path("api/save-subject-ratings/", views.save_subject_ratings, name="save-subject-ratings"),
 ]
+# noop commit marker

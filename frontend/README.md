@@ -30,3 +30,4 @@
 - `src/` – Vue components and app code
 - `index.html` – Entry HTML file
 - `vite.config.js` – Vite configuration
+<!-- noop commit marker -->

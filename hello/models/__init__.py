@@ -4,3 +4,4 @@ from .student_subject import StudentSubject
 from .category import Category
 
 __all__ = ['Student', 'Subject', 'StudentSubject', 'Category']
+# noop commit marker
