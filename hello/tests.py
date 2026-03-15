@@ -3,6 +3,7 @@ import sys
 import types
 from unittest.mock import MagicMock, patch
 
+import requests
 from django.test import TestCase
 
 
@@ -165,3 +166,131 @@ class ScrapeSubjectsResponseTests(TestCase):
 			data["message"],
 			"Rezultatu nerasta pasirinktame semestru intervale.",
 		)
+
+
+class ScrapeUrlValidationTests(TestCase):
+	endpoint = "/api/scrape-text/"
+
+	def _post(self, payload):
+		return self.client.post(
+			self.endpoint,
+			data=json.dumps(payload),
+			content_type="application/json",
+		)
+
+	def test_requires_url(self):
+		response = self._post({
+			"fromSemester": 1,
+			"toSemester": 2,
+		})
+
+		self.assertEqual(response.status_code, 400)
+		self.assertEqual(
+			response.json()["error"],
+			"Field 'url' is required.",
+		)
+
+	def test_rejects_invalid_url_format(self):
+		response = self._post({
+			"url": "ftp://example.com",
+			"fromSemester": 1,
+			"toSemester": 2,
+		})
+
+		self.assertEqual(response.status_code, 400)
+		self.assertEqual(
+			response.json()["error"],
+			"URL must start with http:// or https://.",
+		)
+
+	@patch("hello.views.requests.get")
+	def test_handles_4xx_error(self, mock_get):
+		mock_response = MagicMock()
+		http_error = requests.HTTPError("404 Client Error")
+		http_error.response = MagicMock()
+		http_error.response.status_code = 404
+		mock_response.raise_for_status.side_effect = http_error
+		mock_get.return_value = mock_response
+
+		response = self._post({
+			"url": "https://example.com",
+			"fromSemester": 1,
+			"toSemester": 2,
+		})
+
+		self.assertEqual(response.status_code, 400)
+		self.assertIn("HTTP error: 404", response.json()["error"])
+
+	@patch("hello.views.requests.get")
+	def test_handles_5xx_error(self, mock_get):
+		mock_response = MagicMock()
+		http_error = requests.HTTPError("500 Server Error")
+		http_error.response = MagicMock()
+		http_error.response.status_code = 500
+		mock_response.raise_for_status.side_effect = http_error
+		mock_get.return_value = mock_response
+
+		response = self._post({
+			"url": "https://example.com",
+			"fromSemester": 1,
+			"toSemester": 2,
+		})
+
+		self.assertEqual(response.status_code, 400)
+		self.assertIn("HTTP error: 500", response.json()["error"])
+
+	@patch("hello.views.requests.get")
+	@patch("hello.views.time.sleep")
+	def test_handles_timeout_after_retries(self, mock_sleep, mock_get):
+		mock_get.side_effect = requests.Timeout("Request timed out")
+
+		response = self._post({
+			"url": "https://example.com",
+			"fromSemester": 1,
+			"toSemester": 2,
+		})
+
+		self.assertEqual(response.status_code, 400)
+		self.assertIn("Failed after 3 attempts", response.json()["error"])
+		self.assertEqual(mock_get.call_count, 3)
+		self.assertEqual(mock_sleep.call_count, 2)  # Sleeps after first two attempts
+
+	@patch("hello.views.requests.get")
+	@patch("hello.views.time.sleep")
+	def test_handles_connection_error_with_retry_success(self, mock_sleep, mock_get):
+		mock_get.side_effect = [
+			requests.ConnectionError("Connection failed"),
+			requests.ConnectionError("Connection failed"),
+			MagicMock(text="<html></html>", raise_for_status=lambda: None)
+		]
+
+		fake_ollama = types.SimpleNamespace(
+			chat=lambda **kwargs: {"message": {"content": '{"study_subjects": []}'}}
+		)
+
+		with patch.dict(sys.modules, {"ollama": fake_ollama}):
+			response = self._post({
+				"url": "https://example.com",
+				"fromSemester": 1,
+				"toSemester": 2,
+			})
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(mock_get.call_count, 3)
+		self.assertEqual(mock_sleep.call_count, 2)
+
+	@patch("hello.views.requests.get")
+	@patch("hello.views.time.sleep")
+	def test_handles_connection_error_retry_fail(self, mock_sleep, mock_get):
+		mock_get.side_effect = requests.ConnectionError("Connection failed")
+
+		response = self._post({
+			"url": "https://example.com",
+			"fromSemester": 1,
+			"toSemester": 2,
+		})
+
+		self.assertEqual(response.status_code, 400)
+		self.assertIn("Failed after 3 attempts", response.json()["error"])
+		self.assertEqual(mock_get.call_count, 3)
+		self.assertEqual(mock_sleep.call_count, 2)
