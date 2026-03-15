@@ -7,13 +7,18 @@
       <div v-else-if="subjects.length">
         <ul class="subjects-list">
           <li v-for="(subject, index) in subjects" :key="index" class="subject-item">
-            <span class="number">{{ index + 1 }}.</span> {{ subject }}
+            <div class="subject-content">
+              <span class="number">{{ index + 1 }}.</span> {{ subject }}
+            </div>
+            <!-- Ištrynimo mygtukas -->
+            <button @click="removeSubject(index)" class="btn-delete" title="Remove subject">❌</button>
           </li>
         </ul>
         <button @click="$router.push('/')" class="btn-back">Go Back</button>
       </div>
 
-      <p v-else class="error-message">No subjects found. Please try scraping again.</p>
+      <!-- Čia automatiškai parodoma, jei ištrinsi viską (tavo reikalavimas SD-117) -->
+      <p v-else class="error-message">⚠️ No subjects left. Please try scraping again or add subjects manually.</p>
     </section>
   </main>
 </template>
@@ -27,6 +32,14 @@ export default {
       loading: true,
     };
   },
+  // --- ŠITA DALIS BUVO PRALEISTA ---
+  methods: {
+    removeSubject(index) {
+      // Ištriname elementą iš masyvo
+      this.subjects.splice(index, 1);
+    }
+  },
+  // --------------------------------
   async mounted() {
     try {
       const response = await fetch("/api/get-latest-subjects/");
@@ -44,7 +57,7 @@ export default {
 </script>
 
 <style scoped>
-/* Išlaikome tavo pasirinktą stilių */
+/* Tavo esami stiliai... */
 .page {
   min-height: 100vh;
   display: grid;
@@ -67,17 +80,33 @@ export default {
   padding: 0;
   margin: 1.5rem 0;
   text-align: left;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 0.5rem;
 }
 
 .subject-item {
+  display: flex; /* Pridėta, kad mygtukas būtų šone */
+  justify-content: space-between;
+  align-items: center;
   padding: 0.75rem;
   background: #f8f9fa;
   border-radius: 8px;
   border-left: 4px solid #1976d2;
   font-size: 0.95rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Mygtuko stilius */
+.btn-delete {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.btn-delete:hover {
+  background: #ffebee;
 }
 
 .number {
@@ -99,5 +128,10 @@ export default {
 
 .btn-back:hover {
   background: #e3f2fd;
+}
+
+.error-message {
+  color: #d32f2f;
+  font-weight: 600;
 }
 </style>
