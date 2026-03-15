@@ -4,33 +4,40 @@
       <h1>Detected Study Subjects</h1>
       <p v-if="loading">Loading subjects...</p>
       
-      <div v-else-if="subjects.length">
-        <ul class="subjects-list">
+      <div v-else>
+        <!-- 1. SĄRAŠAS: Rodomas tik jei yra dalykų -->
+        <ul v-if="subjects.length" class="subjects-list">
           <li v-for="(subject, index) in subjects" :key="index" class="subject-item">
             <div class="subject-content">
               <span class="number">{{ index + 1 }}.</span> {{ subject }}
             </div>
-            <!-- Ištrynimo mygtukas -->
-            <button @click="removeSubject(index)" class="btn-delete" title="Remove subject">❌</button>
+            <button @click="removeSubject(index)" class="btn-delete">🗑️</button>
           </li>
         </ul>
 
+        <div v-else class="empty-warning">
+          <div class="warning-icon">⚠️</div>
+          <div class="warning-text">
+            <strong>Sąrašas tuščias!</strong>
+            <p>Be studijų dalykų renginių paieška negalima. Prašome pridėti bent vieną dalyką žemiau arba pradėti scrapinimą iš naujo.</p>
+          </div>
+        </div>
+
         <div class="add-subject-container">
-  <input 
-    v-model="newSubjectName" 
-    @keyup.enter="addSubject"
-    type="text" 
-    placeholder="Enter new subject name..." 
-    class="input-add"
-  />
-  <button @click="addSubject" class="btn-add">Add Subject</button>
-</div>
+          <input 
+            v-model="newSubjectName" 
+            @keyup.enter="addSubject"
+            type="text" 
+            placeholder="Enter new subject name..." 
+            class="input-add"
+          />
+          <button @click="addSubject" class="btn-add">Add Subject</button>
+        </div>
 
-        <button @click="$router.push('/')" class="btn-back">Go Back</button>
+        <div class="button-group">
+          <button @click="$router.push('/')" class="btn-back">Go Back</button>
+        </div>
       </div>
-
-      <!-- Čia automatiškai parodoma, jei ištrinsi viską (tavo reikalavimas SD-117) -->
-      <p v-else class="error-message">⚠️ No subjects left. Please try scraping again or add subjects manually.</p>
     </section>
   </main>
 </template>
@@ -45,21 +52,18 @@ export default {
       newSubjectName: "",
     };
   },
-  // --- ŠITA DALIS BUVO PRALEISTA ---
   methods: {
     removeSubject(index) {
-      // Ištriname elementą iš masyvo
       this.subjects.splice(index, 1);
     },
     addSubject() {
       const name = this.newSubjectName.trim();
       if (name) {
-        this.subjects.push(name); // Pridedame į sąrašą
-        this.newSubjectName = ""; // Išvalome laukelį
+        this.subjects.push(name);
+        this.newSubjectName = "";
       }
     }
   },
-  // --------------------------------
   async mounted() {
     try {
       const response = await fetch("/api/get-latest-subjects/");
@@ -77,6 +81,13 @@ export default {
 </script>
 
 <style scoped>
+/* Visi tavo ankstesni stiliai lieka galioti */
+.button-group {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 1rem;
+}
 /* Tavo esami stiliai... */
 .page {
   min-height: 100vh;
