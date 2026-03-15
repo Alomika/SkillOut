@@ -316,6 +316,9 @@ def scrape_text(request):
     if from_semester < 1 or to_semester < 1:
         return JsonResponse({"error": "fromSemester and toSemester must be at least 1."}, status=400)
 
+    if from_semester > 8 or to_semester > 8:
+        return JsonResponse({"error": "fromSemester and toSemester must be at most 8."}, status=400)
+
     if from_semester > to_semester:
         return JsonResponse({"error": "fromSemester cannot be greater than toSemester."}, status=400)
     if not url:
@@ -437,9 +440,13 @@ def scrape_text(request):
         encoding="utf-8",
     )
 
+    result_message = "Scrape and AI extraction completed successfully."
+    if not subjects:
+        result_message = "Rezultatu nerasta pasirinktame semestru intervale."
+
     return JsonResponse(
         {
-            "message": "Scrape and AI extraction completed successfully.",
+            "message": result_message,
             "file": str(txt_output_file.relative_to(settings.BASE_DIR)),
             "json_file": str(json_output_file.relative_to(settings.BASE_DIR)),
             "characters": len(text),
