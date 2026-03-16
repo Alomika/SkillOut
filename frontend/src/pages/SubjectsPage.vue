@@ -11,11 +11,17 @@
             <div class="subject-content">
               <div><span class="number">{{ index + 1 }}.</span> {{ subject }}</div>
               <div class="stars" aria-label="Subject rating">
-                <span class="star">☆</span>
-                <span class="star">☆</span>
-                <span class="star">☆</span>
-                <span class="star">☆</span>
-                <span class="star">☆</span>
+                <button
+                  v-for="star in 5"
+                  :key="`${subject}-${index}-${star}`"
+                  type="button"
+                  class="star-button"
+                  :class="{ active: star <= (ratings[index] || 0) }"
+                  :aria-label="`Rate ${subject}: ${star} star${star > 1 ? 's' : ''}`"
+                  @click="setRating(index, star)"
+                >
+                  ★
+                </button>
               </div>
             </div>
             <button @click="removeSubject(index)" class="btn-delete">🗑️</button>
@@ -56,6 +62,7 @@ export default {
   data() {
     return {
       subjects: [],
+      ratings: [],
       loading: true,
       newSubjectName: "",
     };
@@ -63,13 +70,18 @@ export default {
   methods: {
     removeSubject(index) {
       this.subjects.splice(index, 1);
+      this.ratings.splice(index, 1);
     },
     addSubject() {
       const name = this.newSubjectName.trim();
       if (name) {
         this.subjects.push(name);
+        this.ratings.push(0);
         this.newSubjectName = "";
       }
+    },
+    setRating(index, stars) {
+      this.ratings.splice(index, 1, stars);
     }
   },
   async mounted() {
@@ -78,6 +90,7 @@ export default {
       const data = await response.json();
       if (data.study_subjects) {
         this.subjects = data.study_subjects;
+        this.ratings = data.study_subjects.map(() => 0);
       }
     } catch (error) {
       console.error("Error loading subjects:", error);
@@ -137,6 +150,7 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  flex: 1;
 }
 
 .stars {
@@ -144,10 +158,18 @@ export default {
   gap: 0.2rem;
 }
 
-.star {
-  color: #f5b301;
+.star-button {
+  border: none;
+  background: transparent;
+  color: #c8ccd3;
   font-size: 1rem;
   line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.star-button.active {
+  color: #f5b301;
 }
 
 /* Mygtuko stilius */
