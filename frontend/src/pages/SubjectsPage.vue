@@ -81,6 +81,7 @@ export default {
       }
     },
     setRating(index, stars) {
+      // Keeping ratings local for quick UI feedback.
       this.ratings.splice(index, 1, stars);
     }
   },
