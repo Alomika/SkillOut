@@ -219,6 +219,23 @@ def _classify_subject_category(subject_name, model):
 # Temporary auth substitute: until authentication is implemented,
 # treat student with ID=1 as the current logged-in student.
 DEFAULT_STUDENT_ID = 1
+
+
+def _get_or_create_default_student():
+    """Return a fallback student record used when auth is not implemented yet."""
+    try:
+        return Student.objects.get(id=DEFAULT_STUDENT_ID)
+    except Student.DoesNotExist:
+        user, _ = User.objects.get_or_create(
+            username="default_student",
+            defaults={
+                "email": "default_student@example.com",
+                "first_name": "Default",
+                "last_name": "Student",
+            },
+        )
+        student, _ = Student.objects.get_or_create(user=user)
+        return student
 from django.utils import timezone
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
@@ -684,13 +701,7 @@ def add_subject_interest(request):
     if interest not in [1, 2, 3, 4, 5]:
         return Response({"error": "Interest must be between 1 and 5"}, status=status.HTTP_400_BAD_REQUEST)
 
-    try:
-        student = Student.objects.get(id=student_id)
-    except Student.DoesNotExist:
-        return Response(
-            {"error": f"Hardcoded student id {DEFAULT_STUDENT_ID} not found"},
-            status=status.HTTP_404_NOT_FOUND,
-        )
+    student = _get_or_create_default_student()
 
     try:
         subject = Subject.objects.get(id=subject_id)
@@ -730,13 +741,7 @@ def update_student_subject_interests(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    try:
-        student = Student.objects.get(id=DEFAULT_STUDENT_ID)
-    except Student.DoesNotExist:
-        return Response(
-            {"error": f"Hardcoded student id {DEFAULT_STUDENT_ID} not found"},
-            status=status.HTTP_404_NOT_FOUND,
-        )
+    student = _get_or_create_default_student()
 
     updated = []
     failed = []
@@ -827,6 +832,7 @@ def update_student_subject_interests(request):
         status=status.HTTP_200_OK,
     )
 
+
 @extend_schema(
     request=GetStudentSubjectsPathSerializer,
     responses={200: StudentSubjectsResponseSerializer, 404: serializers.DictField()},
@@ -839,19 +845,20 @@ def get_student_subjects(request, student_id):
         return Response({"error": "Student not found"}, status=status.HTTP_404_NOT_FOUND)
 
     student_subjects = StudentSubject.objects.filter(student=student).select_related("subject__category")
+    interest_by_subject_id = {ss.subject_id: ss.interest for ss in student_subjects}
     interest_map = dict(StudentSubject.INTEREST_CHOICES)
 
     subjects_data = []
-    for ss in student_subjects:
-        subject = ss.subject
+    for subject in Subject.objects.select_related("category").order_by("name"):
+        interest = interest_by_subject_id.get(subject.id)
         subjects_data.append(
             {
                 "subject_id": subject.id,
                 "name": subject.name,
                 "category_id": subject.category.id if subject.category else None,
                 "category_name": subject.category.name if subject.category else None,
-                "interest": ss.interest,
-                "interest_description": interest_map.get(ss.interest),
+                "interest": interest,
+                "interest_description": interest_map.get(interest),
             }
         )
 

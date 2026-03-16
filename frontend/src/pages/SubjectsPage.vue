@@ -9,7 +9,20 @@
         <ul v-if="subjects.length" class="subjects-list">
           <li v-for="(subject, index) in subjects" :key="index" class="subject-item">
             <div class="subject-content">
-              <span class="number">{{ index + 1 }}.</span> {{ subject }}
+              <div><span class="number">{{ index + 1 }}.</span> {{ subject }}</div>
+              <div class="stars" aria-label="Subject rating">
+                <button
+                  v-for="star in 5"
+                  :key="`${subject}-${index}-${star}`"
+                  type="button"
+                  class="star-button"
+                  :class="{ active: star <= (ratings[index] || 0) }"
+                  :aria-label="`Rate ${subject}: ${star} star${star > 1 ? 's' : ''}`"
+                  @click="setRating(index, subject, star)"
+                >
+                  ★
+                </button>
+              </div>
             </div>
             <button @click="removeSubject(index)" class="btn-delete">🗑️</button>
           </li>
@@ -49,6 +62,8 @@ export default {
   data() {
     return {
       subjects: [],
+      ratings: [],
+      subjectIds: [],
       loading: true,
       newSubjectName: "",
     };
@@ -56,21 +71,77 @@ export default {
   methods: {
     removeSubject(index) {
       this.subjects.splice(index, 1);
+      this.ratings.splice(index, 1);
+      this.subjectIds.splice(index, 1);
     },
     addSubject() {
       const name = this.newSubjectName.trim();
       if (name) {
         this.subjects.push(name);
+        this.ratings.push(0);
+        this.subjectIds.push(null);
         this.newSubjectName = "";
+      }
+    },
+    async setRating(index, subjectName, stars) {
+      const previous = this.ratings[index] || 0;
+      this.ratings.splice(index, 1, stars);
+      const subjectId = this.subjectIds[index];
+
+      if (!subjectId) {
+        this.ratings.splice(index, 1, previous);
+        console.error(`Subject id is missing for '${subjectName}'.`);
+        return;
+      }
+
+      try {
+        const response = await fetch("/add-interest/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            subject_id: subjectId,
+            interest: stars,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || "Failed to save rating.");
+        }
+      } catch (error) {
+        this.ratings.splice(index, 1, previous);
+        console.error("Error saving rating:", error);
       }
     }
   },
   async mounted() {
     try {
-      const response = await fetch("/api/get-latest-subjects/");
-      const data = await response.json();
-      if (data.study_subjects) {
-        this.subjects = data.study_subjects;
+      const [subjectsResponse, ratingsResponse] = await Promise.all([
+        fetch("/api/get-latest-subjects/"),
+        fetch("/student/1/subjedcts/"),
+      ]);
+
+      const subjectsData = await subjectsResponse.json().catch(() => ({}));
+      const ratingsData = await ratingsResponse.json().catch(() => ({}));
+
+      if (Array.isArray(subjectsData.study_subjects)) {
+        this.subjects = subjectsData.study_subjects;
+        const ratingByName = new Map(
+          Array.isArray(ratingsData.subjects)
+            ? ratingsData.subjects.map((item) => [item.name, item])
+            : []
+        );
+
+        this.ratings = this.subjects.map((name) => {
+          const item = ratingByName.get(name);
+          return item && item.interest ? item.interest : 0;
+        });
+        this.subjectIds = this.subjects.map((name) => {
+          const item = ratingByName.get(name);
+          return item ? item.subject_id : null;
+        });
       }
     } catch (error) {
       console.error("Error loading subjects:", error);
@@ -124,6 +195,32 @@ export default {
   border-left: 4px solid #1976d2;
   font-size: 0.95rem;
   margin-bottom: 0.5rem;
+}
+
+.subject-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 1;
+}
+
+.stars {
+  display: inline-flex;
+  gap: 0.2rem;
+}
+
+.star-button {
+  border: none;
+  background: transparent;
+  color: #c8ccd3;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.star-button.active {
+  color: #f5b301;
 }
 
 /* Mygtuko stilius */
