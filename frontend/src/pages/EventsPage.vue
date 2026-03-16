@@ -8,7 +8,7 @@
       <p v-else class="state">Total: {{ total }}</p>
 
       <ul v-if="!loading && !error && events.length" class="events-list">
-        <li v-for="event in events" :key="event.event_id" class="event-item">
+        <li v-for="event in events" :key="event.event_id" class="event-item" @click="openModal(event)">
           <h2>{{ event.name }}</h2>
           <p><strong>Date:</strong> {{ event.date }} {{ event.time }}</p>
           <p><strong>Place:</strong> {{ event.place }}</p>
@@ -16,6 +16,13 @@
           <p><strong>Categories:</strong> {{ formatCategories(event.categories) }}</p>
         </li>
       </ul>
+
+      <EventModal
+        v-if="modalVisible"
+        :event="selectedEvent"
+        :visible="modalVisible"
+        @close="closeModal"
+      />
 
       <p v-else-if="!loading && !error" class="state">No events found. Go back to subjects.</p>
 
@@ -27,19 +34,34 @@
 </template>
 
 <script>
+import EventModal from "../components/EventModal.vue";
+
 export default {
   name: "EventsPage",
+  components: {
+    EventModal,
+  },
   data() {
     return {
       events: [],
       total: 0,
       loading: true,
       error: "",
+      modalVisible: false,
+      selectedEvent: null,
     };
   },
   methods: {
     formatCategories(categories) {
       return Array.isArray(categories) && categories.length ? categories.join(", ") : "-";
+    },
+    openModal(event) {
+      this.selectedEvent = event;
+      this.modalVisible = true;
+    },
+    closeModal() {
+      this.modalVisible = false;
+      this.selectedEvent = null;
     },
   },
   async mounted() {
@@ -58,7 +80,7 @@ export default {
     } finally {
       this.loading = false;
     }
-  },
+  }
 };
 </script>
 
