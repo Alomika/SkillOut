@@ -5,7 +5,7 @@
 
       <p v-if="loading" class="state">Loading events...</p>
       <p v-else-if="error" class="error-message">{{ error }}</p>
-      <p v-else class="state">Total: {{ total }}</p>
+      <p v-else class="state">{{ isDefault ? "Showing all events (no interests set)" : `Showing ${total} matched event(s)` }}</p>
 
       <ul v-if="!loading && !error && events.length" class="events-list">
         <li v-for="event in events" :key="event.event_id" class="event-item">
@@ -35,6 +35,7 @@ export default {
       total: 0,
       loading: true,
       error: "",
+      isDefault: false,
     };
   },
   methods: {
@@ -44,15 +45,45 @@ export default {
   },
   async mounted() {
     try {
-      const response = await fetch("/api/events/");
-      const data = await response.json();
+      const [studentRes, eventsRes] = await Promise.all([
+        fetch("/api/student/1/subjects/"),
+        fetch("/api/events/"),
+      ]);
 
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to load events.");
+      const studentData = await studentRes.json().catch(() => ({}));
+      const eventsData = await eventsRes.json();
+
+      if (!eventsRes.ok) {
+        throw new Error(eventsData.error || "Failed to load events.");
       }
 
-      this.events = Array.isArray(data.events) ? data.events : [];
-      this.total = Number.isInteger(data.total) ? data.total : this.events.length;
+      const allEvents = Array.isArray(eventsData.events) ? eventsData.events : [];
+
+      const subjectsWithInterest = Array.isArray(studentData.subjects)
+        ? studentData.subjects.filter((s) => s.interest && s.interest > 0)
+        : [];
+
+      if (subjectsWithInterest.length === 0) {
+        this.isDefault = true;
+        this.events = allEvents;
+      } else {
+        const interestCategories = new Set(
+          subjectsWithInterest
+            .map((s) => s.category_name)
+            .filter(Boolean)
+            .map((n) => n.toLowerCase())
+        );
+
+        const filtered = allEvents.filter((event) =>
+          Array.isArray(event.categories) &&
+          event.categories.some((c) => interestCategories.has(c.toLowerCase()))
+        );
+
+        this.events = filtered.length > 0 ? filtered : allEvents;
+        if (filtered.length === 0) this.isDefault = true;
+      }
+
+      this.total = this.events.length;
     } catch (error) {
       this.error = error.message || "Failed to load events.";
     } finally {
