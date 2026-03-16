@@ -67,7 +67,7 @@ export default {
   async mounted() {
     try {
       const response = await fetch("/api/events/");
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
         throw new Error(data.error || "Failed to load events.");

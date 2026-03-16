@@ -1624,27 +1624,114 @@ def get_latest_events(request):
     )
 
 
+def _event_to_json(event):
+    return {
+        "event_id": event.id,
+        "name": event.name,
+        "date": str(event.date),
+        "time": event.time.strftime("%H:%M") if event.time else "",
+        "place": event.place,
+        "price": str(event.price),
+        "categories": [c.name for c in event.categories.all()],
+        "short_description": event.short_description,
+        "source_url": event.source_url,
+    }
+
+
+def _events_to_json(events):
+    return [_event_to_json(e) for e in events]
+
+
+def search_events_by_subject_category(subject):
+    """Find events whose categories match the given subject's category.
+
+    Accepts a Subject instance, subject id, or subject name. Returns a list of Event objects.
+    """
+    subject_obj = None
+
+    if isinstance(subject, Subject):
+        subject_obj = subject
+    elif isinstance(subject, int):
+        subject_obj = Subject.objects.filter(id=subject).select_related("category").first()
+    elif isinstance(subject, str):
+        subject_obj = Subject.objects.filter(name__iexact=subject.strip()).select_related("category").first()
+
+    if not subject_obj or not subject_obj.category or not subject_obj.category.name:
+        return []
+
+    category_name = subject_obj.category.name.strip().lower()
+    events = Event.objects.prefetch_related("categories").order_by("-date", "-time")
+
+    return [
+        event
+        for event in events
+        if any((c.name or "").strip().lower() == category_name for c in event.categories.all())
+    ]
+
+
 @api_view(["GET"])
 def get_events(request):
     """Return all events stored in the database, newest first."""
     events = Event.objects.prefetch_related("categories").order_by("-date", "-time")
 
-    data = [
-        {
-            "event_id": e.id,
-            "name": e.name,
-            "date": str(e.date),
-            "time": e.time.strftime("%H:%M"),
-            "place": e.place,
-            "price": str(e.price),
-            "categories": [c.name for c in e.categories.all()],
-            "short_description": e.short_description,
-            "source_url": e.source_url,
-        }
-        for e in events
-    ]
+    data = _events_to_json(events)
 
     return Response({"total": len(data), "events": data}, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    request=GetStudentSubjectsPathSerializer,
+    responses={200: serializers.DictField(), 404: serializers.DictField()},
+)
+@api_view(["GET"])
+def get_events_for_student_categories(request, student_id):
+    """Return events filtered by the student's interested subject categories.
+
+    If the student has no subjects with interest > 0, return default (all) events.
+    """
+    try:
+        student = Student.objects.get(id=student_id)
+    except Student.DoesNotExist:
+        return Response({"error": "Student not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    base_events = Event.objects.prefetch_related("categories").order_by("-date", "-time")
+
+    student_subjects = StudentSubject.objects.filter(
+        student=student,
+        interest__gt=0,
+    ).select_related("subject__category")
+
+    category_names = {
+        ss.subject.category.name.strip().lower()
+        for ss in student_subjects
+        if ss.subject and ss.subject.category and ss.subject.category.name
+    }
+
+    if category_names:
+        events_queryset = [
+            event
+            for event in base_events
+            if any((c.name or "").strip().lower() in category_names for c in event.categories.all())
+        ]
+        mode = "matched"
+        used_categories = sorted(category_names)
+    else:
+        events_queryset = list(base_events)
+        mode = "default"
+        used_categories = []
+
+    data = _events_to_json(events_queryset)
+
+    return Response(
+        {
+            "student_id": student_id,
+            "mode": mode,
+            "categories_used": used_categories,
+            "total": len(data),
+            "events": data,
+        },
+        status=status.HTTP_200_OK,
+    )
 
 
 @extend_schema(
@@ -1703,20 +1790,7 @@ def filter_events(request):
     if end_time is not None:
         events = events.filter(time__lte=end_time)
 
-    data = [
-        {
-            "event_id": event.id,
-            "name": event.name,
-            "date": str(event.date),
-            "time": event.time.strftime("%H:%M"),
-            "place": event.place,
-            "price": str(event.price),
-            "categories": [category.name for category in event.categories.all()],
-            "short_description": event.short_description,
-            "source_url": event.source_url,
-        }
-        for event in events
-    ]
+    data = _events_to_json(events)
 
     return Response({"total": len(data), "events": data}, status=status.HTTP_200_OK)
 
@@ -1732,20 +1806,7 @@ def get_event_by_id(request, event_id):
     except Event.DoesNotExist:
         return Response({"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    return Response(
-        {
-            "event_id": event.id,
-            "name": event.name,
-            "date": str(event.date),
-            "time": event.time.strftime("%H:%M"),
-            "place": event.place,
-            "price": str(event.price),
-            "categories": [category.name for category in event.categories.all()],
-            "short_description": event.short_description,
-            "source_url": event.source_url,
-        },
-        status=status.HTTP_200_OK,
-    )
+    return Response(_event_to_json(event), status=status.HTTP_200_OK)
 
 
 @extend_schema(
