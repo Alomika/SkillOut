@@ -14,16 +14,6 @@
           <p><strong>Place:</strong> {{ event.place }}</p>
           <p><strong>Price:</strong> {{ event.price }}</p>
           <p><strong>Categories:</strong> {{ formatCategories(event.categories) }}</p>
-          <p><strong>Description:</strong> {{ event.short_description || "-" }}</p>
-          <a
-            v-if="event.source_url"
-            :href="event.source_url"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="source-link"
-          >
-            Source
-          </a>
         </li>
       </ul>
 
@@ -132,17 +122,6 @@ h1 {
 .event-item p {
   margin: 0.25rem 0;
   color: #4a5565;
-}
-
-.source-link {
-  display: inline-block;
-  margin-top: 0.4rem;
-  color: #1976d2;
-  text-decoration: none;
-}
-
-.source-link:hover {
-  text-decoration: underline;
 }
 
 .button-wrapper {
