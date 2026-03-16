@@ -13,6 +13,7 @@ urlpatterns = [
     path("add-interest/", views.add_subject_interest, name="add_subject_interest"),
     path("update-interests/", views.update_student_subject_interests, name="update_student_subject_interests"),
     path("student/<int:student_id>/subjects/", views.get_student_subjects, name="get_student_subjects"),
+    path("api/student/<int:student_id>/subjects/", views.get_student_subjects, name="api_get_student_subjects"),
     path("api/scrape-text/", views.scrape_text, name="scrape-text"),
     path("api/import-subjects/", views.import_subjects_with_categories, name="import-subjects"),
     path("api/scrape-import-assign/", views.scrape_import_and_assign_subjects, name="scrape-import-assign"),
