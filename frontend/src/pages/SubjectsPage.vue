@@ -9,7 +9,14 @@
         <ul v-if="subjects.length" class="subjects-list">
           <li v-for="(subject, index) in subjects" :key="index" class="subject-item">
             <div class="subject-content">
-              <span class="number">{{ index + 1 }}.</span> {{ subject }}
+              <div><span class="number">{{ index + 1 }}.</span> {{ subject }}</div>
+              <div class="stars" aria-label="Subject rating">
+                <span class="star">☆</span>
+                <span class="star">☆</span>
+                <span class="star">☆</span>
+                <span class="star">☆</span>
+                <span class="star">☆</span>
+              </div>
             </div>
             <button @click="removeSubject(index)" class="btn-delete">🗑️</button>
           </li>
@@ -124,6 +131,23 @@ export default {
   border-left: 4px solid #1976d2;
   font-size: 0.95rem;
   margin-bottom: 0.5rem;
+}
+
+.subject-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.stars {
+  display: inline-flex;
+  gap: 0.2rem;
+}
+
+.star {
+  color: #f5b301;
+  font-size: 1rem;
+  line-height: 1;
 }
 
 /* Mygtuko stilius */
