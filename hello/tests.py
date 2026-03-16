@@ -571,3 +571,120 @@ class SubjectInterestAssignmentTests(TestCase):
 			any(s["name"] == "Algoritmika" and s["interest"] == 3 for s in subjects),
 			f"Expected subject with interest not found in: {subjects}",
 		)
+
+
+class SD59InterestApiTests(TestCase):
+	"""Unit tests for SD-59: subject interest save/load API behavior."""
+
+	def setUp(self):
+		from django.contrib.auth.models import User
+		from hello.models import Category, Student, Subject
+
+		self.user = User.objects.create_user(username="sd59_user", password="pass")
+		self.student = Student.objects.create(user=self.user)
+		self.category = Category.objects.create(name="Informatics")
+		self.subject_a = Subject.objects.create(name="Programavimas", category=self.category)
+		self.subject_b = Subject.objects.create(name="Algoritmai", category=self.category)
+
+	def test_api_add_interest_alias_saves_interest_for_default_student(self):
+		from hello.models import StudentSubject
+
+		response = self.client.post(
+			"/api/add-interest/",
+			data=json.dumps({"subject_id": self.subject_a.id, "interest": 4}),
+			content_type="application/json",
+		)
+
+		self.assertEqual(response.status_code, 201)
+		self.assertTrue(
+			StudentSubject.objects.filter(
+				student_id=1,
+				subject=self.subject_a,
+				interest=4,
+			).exists()
+		)
+
+	def test_api_student_subjects_returns_all_subjects_with_optional_interest(self):
+		from hello.models import StudentSubject
+
+		StudentSubject.objects.create(student=self.student, subject=self.subject_a, interest=5)
+
+		response = self.client.get(f"/api/student/{self.student.id}/subjects/")
+
+		self.assertEqual(response.status_code, 200)
+		data = response.json()
+		rows = {item["name"]: item for item in data.get("subjects", [])}
+
+		self.assertIn("Programavimas", rows)
+		self.assertIn("Algoritmai", rows)
+		self.assertEqual(rows["Programavimas"]["interest"], 5)
+		self.assertIsNone(rows["Algoritmai"]["interest"])
+
+
+class SD77StudentCategoryEventSearchTests(TestCase):
+	"""Unit tests for SD-77: events are searched by student subject categories."""
+
+	def setUp(self):
+		from datetime import date, time
+		from decimal import Decimal
+		from django.contrib.auth.models import User
+		from hello.models import Category, Event, Student, StudentSubject, Subject
+
+		self.user = User.objects.create_user(username="sd77_user", password="pass")
+		self.student = Student.objects.create(user=self.user)
+
+		self.cat_it = Category.objects.create(name="IT")
+		self.cat_art = Category.objects.create(name="Art")
+
+		self.subject_it = Subject.objects.create(name="Databases", category=self.cat_it)
+		self.subject_art = Subject.objects.create(name="Painting", category=self.cat_art)
+
+		StudentSubject.objects.create(student=self.student, subject=self.subject_it, interest=5)
+
+		event_it = Event.objects.create(
+			name="Hackathon",
+			date=date(2026, 3, 20),
+			time=time(10, 0),
+			short_description="Coding event",
+			price=Decimal("0.00"),
+			place="Vilnius",
+		)
+		event_it.categories.add(self.cat_it)
+
+		event_art = Event.objects.create(
+			name="Gallery Night",
+			date=date(2026, 3, 21),
+			time=time(19, 0),
+			short_description="Art event",
+			price=Decimal("10.00"),
+			place="Kaunas",
+		)
+		event_art.categories.add(self.cat_art)
+
+	def test_returns_matched_events_for_student_interest_categories(self):
+		response = self.client.get(f"/api/events/student/{self.student.id}/")
+
+		self.assertEqual(response.status_code, 200)
+		data = response.json()
+		self.assertEqual(data.get("mode"), "matched")
+		self.assertEqual(data.get("total"), 1)
+		names = [e["name"] for e in data.get("events", [])]
+		self.assertEqual(names, ["Hackathon"])
+
+	def test_returns_default_events_when_student_has_no_saved_interests(self):
+		from django.contrib.auth.models import User
+		from hello.models import Student
+
+		user2 = User.objects.create_user(username="sd77_empty", password="pass")
+		student2 = Student.objects.create(user=user2)
+
+		response = self.client.get(f"/api/events/student/{student2.id}/")
+
+		self.assertEqual(response.status_code, 200)
+		data = response.json()
+		self.assertEqual(data.get("mode"), "default")
+		self.assertEqual(data.get("total"), 2)
+
+	def test_returns_404_for_unknown_student(self):
+		response = self.client.get("/api/events/student/99999/")
+		self.assertEqual(response.status_code, 404)
