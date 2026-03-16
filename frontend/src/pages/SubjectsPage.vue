@@ -35,6 +35,7 @@
         </div>
 
         <div class="button-group">
+          <button @click="$router.push('/events')" class="btn-events">View Events</button>
           <button @click="$router.push('/')" class="btn-back">Go Back</button>
         </div>
       </div>
@@ -159,6 +160,21 @@ export default {
 
 .btn-back:hover {
   background: #e3f2fd;
+}
+
+.btn-events {
+  margin-top: 1rem;
+  padding: 0.65rem 1.5rem;
+  border: none;
+  background: #1976d2;
+  color: #ffffff;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-events:hover {
+  background: #115aa0;
 }
 
 .error-message {
