@@ -1,5 +1,39 @@
 <template>
-  <pre>{{ output }}</pre>
+  <main class="page">
+    <section class="card">
+      <h1>Events</h1>
+
+      <p v-if="loading" class="state">Loading events...</p>
+      <p v-else-if="error" class="error-message">{{ error }}</p>
+      <p v-else class="state">Total: {{ total }}</p>
+
+      <ul v-if="!loading && !error && events.length" class="events-list">
+        <li v-for="event in events" :key="event.event_id" class="event-item">
+          <h2>{{ event.name }}</h2>
+          <p><strong>Date:</strong> {{ event.date }} {{ event.time }}</p>
+          <p><strong>Place:</strong> {{ event.place }}</p>
+          <p><strong>Price:</strong> {{ event.price }}</p>
+          <p><strong>Categories:</strong> {{ formatCategories(event.categories) }}</p>
+          <p><strong>Description:</strong> {{ event.short_description || "-" }}</p>
+          <a
+            v-if="event.source_url"
+            :href="event.source_url"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="source-link"
+          >
+            Source
+          </a>
+        </li>
+      </ul>
+
+      <p v-else-if="!loading && !error" class="state">No events found.</p>
+
+      <div class="button-wrapper">
+        <button @click="$router.push('/subjects')">Back to Subjects</button>
+      </div>
+    </section>
+  </main>
 </template>
 
 <script>
@@ -7,17 +41,127 @@ export default {
   name: "EventsPage",
   data() {
     return {
-      output: "Loading...",
+      events: [],
+      total: 0,
+      loading: true,
+      error: "",
     };
+  },
+  methods: {
+    formatCategories(categories) {
+      return Array.isArray(categories) && categories.length ? categories.join(", ") : "-";
+    },
   },
   async mounted() {
     try {
       const response = await fetch("/api/events/");
       const data = await response.json();
-      this.output = JSON.stringify(data, null, 2);
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to load events.");
+      }
+
+      this.events = Array.isArray(data.events) ? data.events : [];
+      this.total = Number.isInteger(data.total) ? data.total : this.events.length;
     } catch (error) {
-      this.output = JSON.stringify({ error: error.message || "Failed to load events." }, null, 2);
+      this.error = error.message || "Failed to load events.";
+    } finally {
+      this.loading = false;
     }
   },
 };
 </script>
+
+<style scoped>
+.page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #f3f8ff 0%, #e3f2eb 100%);
+  padding: 1rem;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.card {
+  width: min(720px, 100%);
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  padding: 1.5rem;
+  text-align: center;
+}
+
+h1 {
+  margin: 0 0 0.5rem;
+}
+
+.state {
+  margin: 0 0 1rem;
+  color: #4a5565;
+}
+
+.error-message {
+  color: #d32f2f;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 0 0 1rem;
+  text-align: center;
+}
+
+.events-list {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+  text-align: left;
+}
+
+.event-item {
+  border-radius: 8px;
+  border-left: 4px solid #1976d2;
+  background: #f8f9fa;
+  padding: 0.75rem;
+}
+
+.event-item h2 {
+  margin: 0 0 0.4rem;
+  font-size: 1rem;
+}
+
+.event-item p {
+  margin: 0.25rem 0;
+  color: #4a5565;
+}
+
+.source-link {
+  display: inline-block;
+  margin-top: 0.4rem;
+  color: #1976d2;
+  text-decoration: none;
+}
+
+.source-link:hover {
+  text-decoration: underline;
+}
+
+.button-wrapper {
+  display: flex;
+  justify-content: center;
+}
+
+button {
+  padding: 0.75rem 2rem;
+  border: none;
+  border-radius: 8px;
+  background: #1976d2;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+button:hover {
+  background: #115aa0;
+}
+</style>
