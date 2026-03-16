@@ -849,19 +849,20 @@ def get_student_subjects(request, student_id):
         return Response({"error": "Student not found"}, status=status.HTTP_404_NOT_FOUND)
 
     student_subjects = StudentSubject.objects.filter(student=student).select_related("subject__category")
+    interest_by_subject_id = {ss.subject_id: ss.interest for ss in student_subjects}
     interest_map = dict(StudentSubject.INTEREST_CHOICES)
 
     subjects_data = []
-    for ss in student_subjects:
-        subject = ss.subject
+    for subject in Subject.objects.select_related("category").order_by("name"):
+        interest = interest_by_subject_id.get(subject.id)
         subjects_data.append(
             {
                 "subject_id": subject.id,
                 "name": subject.name,
                 "category_id": subject.category.id if subject.category else None,
                 "category_name": subject.category.name if subject.category else None,
-                "interest": ss.interest,
-                "interest_description": interest_map.get(ss.interest),
+                "interest": interest,
+                "interest_description": interest_map.get(interest),
             }
         )
 
