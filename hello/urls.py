@@ -10,6 +10,7 @@ urlpatterns = [
     path("add-student/", views.add_student, name="add_student"),
     path("add-category/", views.add_category, name="add_category"),
     path("add-subject/", views.add_subject, name="add_subject"),
+    path("api/add-subject/", views.add_subject, name="api_add_subject"),
     path("add-interest/", views.add_subject_interest, name="add_subject_interest"),
     path("api/add-interest/", views.add_subject_interest, name="api_add_subject_interest"),
     path("update-interests/", views.update_student_subject_interests, name="update_student_subject_interests"),
