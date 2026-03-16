@@ -9,7 +9,20 @@
         <ul v-if="subjects.length" class="subjects-list">
           <li v-for="(subject, index) in subjects" :key="index" class="subject-item">
             <div class="subject-content">
-              <span class="number">{{ index + 1 }}.</span> {{ subject }}
+              <div><span class="number">{{ index + 1 }}.</span> {{ subject }}</div>
+              <div class="stars" aria-label="Subject rating">
+                <button
+                  v-for="star in 5"
+                  :key="`${subject}-${index}-${star}`"
+                  type="button"
+                  class="star-button"
+                  :class="{ active: star <= (ratings[index] || 0) }"
+                  :aria-label="`Rate ${subject}: ${star} star${star > 1 ? 's' : ''}`"
+                  @click="setRating(index, star)"
+                >
+                  ★
+                </button>
+              </div>
             </div>
             <button @click="removeSubject(index)" class="btn-delete">🗑️</button>
           </li>
@@ -35,9 +48,10 @@
         </div>
 
         <div class="button-group">
-          <button @click="$router.push('/events')" class="btn-events">View Events</button>
+          <button @click="handleViewEvents" class="btn-events" :disabled="savingBeforeEvents">{{ savingBeforeEvents ? "Saving..." : "View Events" }}</button>
           <button @click="$router.push('/')" class="btn-back">Go Back</button>
         </div>
+        <p v-if="saveNotice" :class="saveNoticeType === 'error' ? 'error-message' : 'success-message'">{{ saveNotice }}</p>
       </div>
     </section>
   </main>
@@ -49,28 +63,141 @@ export default {
   data() {
     return {
       subjects: [],
+      ratings: [],
+      originalRatings: [],
+      subjectIds: [],
       loading: true,
+      savingBeforeEvents: false,
+      saveNotice: "",
+      saveNoticeType: "success",
       newSubjectName: "",
     };
   },
   methods: {
     removeSubject(index) {
       this.subjects.splice(index, 1);
+      this.ratings.splice(index, 1);
+      this.subjectIds.splice(index, 1);
     },
     addSubject() {
       const name = this.newSubjectName.trim();
       if (name) {
         this.subjects.push(name);
+        this.ratings.push(0);
+        this.subjectIds.push(null);
         this.newSubjectName = "";
+      }
+    },
+    async saveRating(index) {
+      const subjectId = this.subjectIds[index];
+      const interest = this.ratings[index] || 0;
+
+      if (interest < 1) {
+        return { ok: true, skipped: true };
+      }
+
+      if (interest === (this.originalRatings[index] || 0)) {
+        return { ok: true, skipped: true };
+      }
+
+      if (!subjectId) {
+        throw new Error("Subject id is missing, rating was not saved.");
+      }
+
+      const response = await fetch("/api/add-interest/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          subject_id: subjectId,
+          interest,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to save rating.");
+      }
+
+      return { ok: true, skipped: false };
+    },
+    async setRating(index, stars) {
+      const previous = this.ratings[index] || 0;
+      this.ratings.splice(index, 1, stars);
+
+      try {
+        const result = await this.saveRating(index);
+        if (!result.skipped) {
+          this.originalRatings.splice(index, 1, stars);
+        }
+      } catch (error) {
+        this.ratings.splice(index, 1, previous);
+        this.saveNoticeType = "error";
+        this.saveNotice = error.message || "Failed to save rating.";
+      }
+    },
+    async handleViewEvents() {
+      this.savingBeforeEvents = true;
+      this.saveNotice = "";
+
+      try {
+        const results = await Promise.all(
+          this.subjects.map(async (_, index) => {
+            try {
+              const result = await this.saveRating(index);
+              return { ok: result.ok, skipped: Boolean(result.skipped) };
+            } catch (error) {
+              return { ok: false, error: error.message || "Save failed." };
+            }
+          })
+        );
+
+        const failed = results.filter((item) => !item.ok);
+        if (failed.length) {
+          this.saveNoticeType = "error";
+          this.saveNotice = `Saving ratings failed for ${failed.length} subject(s). Please try again.`;
+          return;
+        }
+
+        this.saveNoticeType = "success";
+        this.saveNotice = "Ratings saved successfully. Opening events...";
+        setTimeout(() => this.$router.push('/events'), 1000);
+      } finally {
+        this.savingBeforeEvents = false;
       }
     }
   },
   async mounted() {
     try {
-      const response = await fetch("/api/get-latest-subjects/");
-      const data = await response.json();
-      if (data.study_subjects) {
-        this.subjects = data.study_subjects;
+      const [subjectsResponse, studentSubjectsResponse] = await Promise.all([
+        fetch("/api/get-latest-subjects/"),
+        fetch("/api/student/1/subjects/"),
+      ]);
+
+      const subjectsData = await subjectsResponse.json().catch(() => ({}));
+      const studentSubjectsData = await studentSubjectsResponse.json().catch(() => ({}));
+
+      if (Array.isArray(subjectsData.study_subjects)) {
+        this.subjects = subjectsData.study_subjects;
+
+        const byName = new Map(
+          Array.isArray(studentSubjectsData.subjects)
+            ? studentSubjectsData.subjects.map((item) => [item.name, item])
+            : []
+        );
+
+        this.ratings = this.subjects.map((name) => {
+          const row = byName.get(name);
+          return row && row.interest ? row.interest : 0;
+        });
+
+        this.originalRatings = [...this.ratings];
+
+        this.subjectIds = this.subjects.map((name) => {
+          const row = byName.get(name);
+          return row ? row.subject_id : null;
+        });
       }
     } catch (error) {
       console.error("Error loading subjects:", error);
@@ -124,6 +251,32 @@ export default {
   border-left: 4px solid #1976d2;
   font-size: 0.95rem;
   margin-bottom: 0.5rem;
+}
+
+.subject-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 1;
+}
+
+.stars {
+  display: inline-flex;
+  gap: 0.2rem;
+}
+
+.star-button {
+  border: none;
+  background: transparent;
+  color: #c8ccd3;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.star-button.active {
+  color: #f5b301;
 }
 
 /* Mygtuko stilius */
@@ -180,6 +333,12 @@ export default {
 .error-message {
   color: #d32f2f;
   font-weight: 600;
+}
+
+.success-message {
+  color: #1b5e20;
+  font-weight: 600;
+  margin-top: 0.75rem;
 }
 
 .add-subject-container {
