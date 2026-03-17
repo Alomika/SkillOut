@@ -141,7 +141,9 @@ def _normalize_subject_names(raw_subjects):
     }
 
     for item in raw_subjects:
-        value = str(item).strip()
+        if not isinstance(item, str):
+            continue
+        value = item.strip()
         if not value:
             continue
 
@@ -155,7 +157,7 @@ def _normalize_subject_names(raw_subjects):
             continue
         if value in skip_tokens:
             continue
-        if compact.startswith("study_subjects\":[") or compact.startswith("study_subjects:["):
+        if compact.startswith('study_subjects":[') or compact.startswith("study_subjects:["):
             continue
 
         key = value.casefold()
