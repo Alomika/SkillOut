@@ -1808,7 +1808,46 @@ def get_event_by_id(request, event_id):
     except Event.DoesNotExist:
         return Response({"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    return Response(_event_to_json(event), status=status.HTTP_200_OK)
+    # Get student_id from query param or use default
+    student_id = request.query_params.get("student_id")
+    if not student_id:
+        student_id = 1  # fallback default
+    try:
+        student = Student.objects.get(id=student_id)
+        student_subjects = student.subjects.all()
+        student_subject_names = [s.name for s in student_subjects]
+    except Student.DoesNotExist:
+        student_subject_names = []
+
+    # AI logic: generate personalized sentence
+    import ollama
+    event_topics = ", ".join([c for c in [event.short_description] + [cat.name for cat in event.categories.all()] if c])
+    subj_str = ", ".join(student_subject_names) if student_subject_names else "tavo studijų dalykai"
+    ai_prompt = (
+        f"Paaiškink, kodėl renginys '{event.name}' ({event_topics}) gali būti naudingas studentui, kurio studijų dalykai: {subj_str}. "
+        "Sugeneruok 1-2 sakinius, susiedamas renginio temą su studento studijų sritimis. Atsakyk lietuviškai."
+    )
+    try:
+        ai_response = ollama.chat(model="llama3", messages=[{"role": "user", "content": ai_prompt}])
+        ai_sentence = ai_response.get("message", {}).get("content", "")
+    except Exception as e:
+        ai_sentence = "DI sakinys negautas."
+
+    return Response(
+        {
+            "event_id": event.id,
+            "name": event.name,
+            "date": str(event.date),
+            "time": event.time.strftime("%H:%M"),
+            "place": event.place,
+            "price": str(event.price),
+            "categories": [category.name for category in event.categories.all()],
+            "short_description": event.short_description,
+            "source_url": event.source_url,
+            "ai_sentence": ai_sentence,
+        },
+        status=status.HTTP_200_OK,
+    )
 
 
 @extend_schema(

@@ -53,17 +53,31 @@ export default {
   },
   methods: {
     formatCategories(categories) {
-      return Array.isArray(categories) && categories.length ? categories.join(", ") : "-";
-    },
-    openModal(event) {
-      this.selectedEvent = event;
-      this.modalVisible = true;
-    },
-    closeModal() {
-      this.modalVisible = false;
-      this.selectedEvent = null;
-    },
+    return Array.isArray(categories) && categories.length ? categories.join(", ") : "-";
   },
+  async openModal(event) {
+    console.log("Opening modal for event", event);
+    this.selectedEvent = event;
+    this.modalVisible = true;
+    try {
+      const response = await fetch(`/api/events/${event.event_id || event.id}/`);
+      const data = await response.json();
+      console.log("Fetched event details", data);
+      if (response.ok) {
+        this.selectedEvent = data;
+      } else {
+        this.selectedEvent = { ...event, ai_sentence: 'Nepavyko gauti DI sakinio.' };
+      }
+    } catch (e) {
+      console.log("Fetch error", e);
+      this.selectedEvent = { ...event, ai_sentence: 'Nepavyko gauti DI sakinio.' };
+    }
+  },
+  closeModal() {
+    this.modalVisible = false;
+    this.selectedEvent = null;
+  },
+},
   async mounted() {
     try {
       const response = await fetch("/api/events/");
