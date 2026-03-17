@@ -1808,7 +1808,6 @@ def get_event_by_id(request, event_id):
     except Event.DoesNotExist:
         return Response({"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
 
-<<<<<<< HEAD
     # Get student_id from query param or use default
     student_id = request.query_params.get("student_id")
     if not student_id:
@@ -1849,9 +1848,6 @@ def get_event_by_id(request, event_id):
         },
         status=status.HTTP_200_OK,
     )
-=======
-    return Response(_event_to_json(event), status=status.HTTP_200_OK)
->>>>>>> origin/develop
 
 
 @extend_schema(
