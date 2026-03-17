@@ -141,7 +141,9 @@ def _normalize_subject_names(raw_subjects):
     }
 
     for item in raw_subjects:
-        value = str(item).strip()
+        if not isinstance(item, str):
+            continue
+        value = item.strip()
         if not value:
             continue
 
@@ -155,7 +157,7 @@ def _normalize_subject_names(raw_subjects):
             continue
         if value in skip_tokens:
             continue
-        if compact.startswith("study_subjects\":[") or compact.startswith("study_subjects:["):
+        if compact.startswith('study_subjects":[') or compact.startswith("study_subjects:["):
             continue
 
         key = value.casefold()
@@ -229,6 +231,23 @@ def _classify_subject_category(subject_name, model):
 # Temporary auth substitute: until authentication is implemented,
 # treat student with ID=1 as the current logged-in student.
 DEFAULT_STUDENT_ID = 1
+
+
+def _get_or_create_default_student():
+    """Return a fallback student record used when auth is not implemented yet."""
+    try:
+        return Student.objects.get(id=DEFAULT_STUDENT_ID)
+    except Student.DoesNotExist:
+        user, _ = User.objects.get_or_create(
+            username="default_student",
+            defaults={
+                "email": "default_student@example.com",
+                "first_name": "Default",
+                "last_name": "Student",
+            },
+        )
+        student, _ = Student.objects.get_or_create(user=user)
+        return student
 from django.utils import timezone
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
@@ -694,13 +713,7 @@ def add_subject_interest(request):
     if interest not in [1, 2, 3, 4, 5]:
         return Response({"error": "Interest must be between 1 and 5"}, status=status.HTTP_400_BAD_REQUEST)
 
-    try:
-        student = Student.objects.get(id=student_id)
-    except Student.DoesNotExist:
-        return Response(
-            {"error": f"Hardcoded student id {DEFAULT_STUDENT_ID} not found"},
-            status=status.HTTP_404_NOT_FOUND,
-        )
+    student = _get_or_create_default_student()
 
     try:
         subject = Subject.objects.get(id=subject_id)
@@ -740,13 +753,7 @@ def update_student_subject_interests(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    try:
-        student = Student.objects.get(id=DEFAULT_STUDENT_ID)
-    except Student.DoesNotExist:
-        return Response(
-            {"error": f"Hardcoded student id {DEFAULT_STUDENT_ID} not found"},
-            status=status.HTTP_404_NOT_FOUND,
-        )
+    student = _get_or_create_default_student()
 
     updated = []
     failed = []
@@ -836,6 +843,7 @@ def update_student_subject_interests(request):
         },
         status=status.HTTP_200_OK,
     )
+
 
 @extend_schema(
     request=GetStudentSubjectsPathSerializer,
@@ -1618,27 +1626,114 @@ def get_latest_events(request):
     )
 
 
+def _event_to_json(event):
+    return {
+        "event_id": event.id,
+        "name": event.name,
+        "date": str(event.date),
+        "time": event.time.strftime("%H:%M") if event.time else "",
+        "place": event.place,
+        "price": str(event.price),
+        "categories": [c.name for c in event.categories.all()],
+        "short_description": event.short_description,
+        "source_url": event.source_url,
+    }
+
+
+def _events_to_json(events):
+    return [_event_to_json(e) for e in events]
+
+
+def search_events_by_subject_category(subject):
+    """Find events whose categories match the given subject's category.
+
+    Accepts a Subject instance, subject id, or subject name. Returns a list of Event objects.
+    """
+    subject_obj = None
+
+    if isinstance(subject, Subject):
+        subject_obj = subject
+    elif isinstance(subject, int):
+        subject_obj = Subject.objects.filter(id=subject).select_related("category").first()
+    elif isinstance(subject, str):
+        subject_obj = Subject.objects.filter(name__iexact=subject.strip()).select_related("category").first()
+
+    if not subject_obj or not subject_obj.category or not subject_obj.category.name:
+        return []
+
+    category_name = subject_obj.category.name.strip().lower()
+    events = Event.objects.prefetch_related("categories").order_by("-date", "-time")
+
+    return [
+        event
+        for event in events
+        if any((c.name or "").strip().lower() == category_name for c in event.categories.all())
+    ]
+
+
 @api_view(["GET"])
 def get_events(request):
     """Return all events stored in the database, newest first."""
     events = Event.objects.prefetch_related("categories").order_by("-date", "-time")
 
-    data = [
-        {
-            "event_id": e.id,
-            "name": e.name,
-            "date": str(e.date),
-            "time": e.time.strftime("%H:%M"),
-            "place": e.place,
-            "price": str(e.price),
-            "categories": [c.name for c in e.categories.all()],
-            "short_description": e.short_description,
-            "source_url": e.source_url,
-        }
-        for e in events
-    ]
+    data = _events_to_json(events)
 
     return Response({"total": len(data), "events": data}, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    request=GetStudentSubjectsPathSerializer,
+    responses={200: serializers.DictField(), 404: serializers.DictField()},
+)
+@api_view(["GET"])
+def get_events_for_student_categories(request, student_id):
+    """Return events filtered by the student's interested subject categories.
+
+    If the student has no subjects with interest > 0, return default (all) events.
+    """
+    try:
+        student = Student.objects.get(id=student_id)
+    except Student.DoesNotExist:
+        return Response({"error": "Student not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    base_events = Event.objects.prefetch_related("categories").order_by("-date", "-time")
+
+    student_subjects = StudentSubject.objects.filter(
+        student=student,
+        interest__gt=0,
+    ).select_related("subject__category")
+
+    category_names = {
+        ss.subject.category.name.strip().lower()
+        for ss in student_subjects
+        if ss.subject and ss.subject.category and ss.subject.category.name
+    }
+
+    if category_names:
+        events_queryset = [
+            event
+            for event in base_events
+            if any((c.name or "").strip().lower() in category_names for c in event.categories.all())
+        ]
+        mode = "matched"
+        used_categories = sorted(category_names)
+    else:
+        events_queryset = list(base_events)
+        mode = "default"
+        used_categories = []
+
+    data = _events_to_json(events_queryset)
+
+    return Response(
+        {
+            "student_id": student_id,
+            "mode": mode,
+            "categories_used": used_categories,
+            "total": len(data),
+            "events": data,
+        },
+        status=status.HTTP_200_OK,
+    )
 
 
 @extend_schema(
@@ -1697,20 +1792,7 @@ def filter_events(request):
     if end_time is not None:
         events = events.filter(time__lte=end_time)
 
-    data = [
-        {
-            "event_id": event.id,
-            "name": event.name,
-            "date": str(event.date),
-            "time": event.time.strftime("%H:%M"),
-            "place": event.place,
-            "price": str(event.price),
-            "categories": [category.name for category in event.categories.all()],
-            "short_description": event.short_description,
-            "source_url": event.source_url,
-        }
-        for event in events
-    ]
+    data = _events_to_json(events)
 
     return Response({"total": len(data), "events": data}, status=status.HTTP_200_OK)
 
@@ -1726,6 +1808,7 @@ def get_event_by_id(request, event_id):
     except Event.DoesNotExist:
         return Response({"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
 
+<<<<<<< HEAD
     # Get student_id from query param or use default
     student_id = request.query_params.get("student_id")
     if not student_id:
@@ -1766,6 +1849,9 @@ def get_event_by_id(request, event_id):
         },
         status=status.HTTP_200_OK,
     )
+=======
+    return Response(_event_to_json(event), status=status.HTTP_200_OK)
+>>>>>>> origin/develop
 
 
 @extend_schema(
