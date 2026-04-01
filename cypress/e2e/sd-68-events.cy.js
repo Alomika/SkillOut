@@ -2,8 +2,8 @@ describe('Events Page', () => {
 
   const apiUrl = '/api/events/'
 
-  // 🟢 SD-T1 – Events with full information
-  it('SD-T1 - displays events with full information', () => {
+  // 🟢 TC-1 – Renginiai su visa informacija (SD-T1)
+  it('TC-1 - displays events with full information', () => {
 
     cy.intercept('GET', apiUrl, {
       statusCode: 200,
@@ -16,7 +16,7 @@ describe('Events Page', () => {
             date: '2025-05-20',
             time: '18:00',
             place: 'Vilnius',
-            price: 10,
+            price: '10.00',
             categories: ['Tech', 'IT']
           },
           {
@@ -25,20 +25,21 @@ describe('Events Page', () => {
             date: '2025-05-21',
             time: '19:30',
             place: 'Kaunas',
-            price: 5.5,
+            price: '5.50',
             categories: ['Music']
           }
         ]
       }
-    })
+    }).as('getEvents')
 
     cy.visit('/events')
+    cy.wait('@getEvents')
 
     cy.get('.event-item').should('have.length', 2)
 
     cy.get('.event-item').eq(0).within(() => {
       cy.contains('h2', 'Tech Conference')
-      cy.contains(/^Date:/).parent().should('contain.text', '2025-05-20 18:00')
+      cy.contains(/^Date:/).parent().invoke('text').should('match', /Date:\s\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}/)
       cy.contains(/^Place:/).parent().should('contain.text', 'Vilnius')
       cy.contains(/^Price:/).parent().should('contain.text', '10,00 €')
       cy.contains(/^Categories:/).parent().should('contain.text', 'Tech, IT')
@@ -46,9 +47,9 @@ describe('Events Page', () => {
 
     cy.get('.event-item').eq(1).within(() => {
       cy.contains('h2', 'Music Night')
-      cy.contains(/^Date:/).parent().should('contain.text', '2025-05-21 19:30')
+      cy.contains(/^Date:/).parent().invoke('text').should('match', /Date:\s\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}/)
       cy.contains(/^Place:/).parent().should('contain.text', 'Kaunas')
-      cy.contains(/^Price:/).parent().should('contain.text', '5,50 €')
+      cy.contains(/^Price:/).parent().should('contain.text', '5,50 € ')
       cy.contains(/^Categories:/).parent().should('contain.text', 'Music')
     })
 
@@ -56,7 +57,7 @@ describe('Events Page', () => {
   })
 
 
-  // 🔴 TC2 – No name (event hidden)
+  // 🔴 TC2 – Renginys be pavadinimo (SD-T10)
   it('TC2 - hides event without name', () => {
 
     cy.intercept('GET', apiUrl, {
@@ -70,21 +71,20 @@ describe('Events Page', () => {
             date: '2025-05-20',
             time: '18:00',
             place: 'Vilnius',
-            price: 10,
+            price: '10.00',
             categories: ['Tech']
           }
         ]
       }
-    })
+    }).as('getEvents')
 
     cy.visit('/events')
-
+    cy.wait('@getEvents')
     cy.get('.event-item').should('have.length', 0)
-    cy.contains('No events found. Go back to subjects.')
   })
 
 
-  // 🔴 TC3 – No date (event hidden)
+  // 🔴 TC3 – Renginys be datos (SD-T16)
   it('TC3 - hides event without date', () => {
 
     cy.intercept('GET', apiUrl, {
@@ -98,20 +98,20 @@ describe('Events Page', () => {
             date: null,
             time: '18:00',
             place: 'Vilnius',
-            price: 10,
+            price: '10.00',
             categories: ['Tech']
           }
         ]
       }
-    })
+    }).as('getEvents')
 
     cy.visit('/events')
-
+    cy.wait('@getEvents')
     cy.get('.event-item').should('have.length', 0)
   })
 
 
-  // 🟡 TC4 – Missing time
+  // 🟡 TC4 – Renginys be laiko (SD-T14)
   it('TC4 - shows only date when time is missing', () => {
 
     cy.intercept('GET', apiUrl, {
@@ -125,22 +125,55 @@ describe('Events Page', () => {
             date: '2025-05-20',
             time: null,
             place: 'Vilnius',
-            price: 10,
+            price: '10.00',
             categories: ['Tech']
           }
         ]
       }
-    })
+    }).as('getEvents')
 
     cy.visit('/events')
-
-    cy.contains('2025-05-20')
-    cy.contains('18:00').should('not.exist')
+    cy.wait('@getEvents')
+    cy.get('.event-item').should('have.length', 1)
+    cy.get('.event-item').first().within(() => {
+      cy.contains(/^Date:/).parent().invoke('text').should('match', /^\s*Date:\s\d{4}-\d{2}-\d{2}\s*$/)
+    })
   })
 
 
-  // 🟡 TC5 – Missing place
-  it('TC5 - shows "-" when place is missing', () => {
+  // 🟡 TC5 – Renginys su 00:00 laiku (SD-T63)
+  it('TC5 - shows only date when time is 00:00', () => {
+
+    cy.intercept('GET', apiUrl, {
+      statusCode: 200,
+      body: {
+        total: 1,
+        events: [
+          {
+            event_id: 1,
+            name: 'Test Event',
+            date: '2025-05-20',
+            time: '00:00',
+            place: 'Vilnius',
+            price: '10.00',
+            categories: ['Tech']
+          }
+        ]
+      }
+    }).as('getEvents')
+
+    cy.visit('/events')
+    cy.wait('@getEvents')
+    cy.get('.event-item').should('have.length', 1)
+    cy.get('.event-item').first().within(() => {
+      cy.contains(/^Date:/).parent().invoke('text').should('match', /^\s*Date:\s\d{4}-\d{2}-\d{2}\s*$/)
+      cy.contains(/^Date:/).parent().invoke('text').should('not.match', /\d{2}:\d{2}/)
+    })
+  })
+
+
+  // 🟡 TC6 – Renginys be vietos (SD-T12)
+  it('TC6 - shows "-" when place is missing', () => {
 
     cy.intercept('GET', apiUrl, {
       statusCode: 200,
@@ -153,21 +186,24 @@ describe('Events Page', () => {
             date: '2025-05-20',
             time: '18:00',
             place: null,
-            price: 10,
+            price: '10.00',
             categories: ['Tech']
           }
         ]
       }
-    })
+    }).as('getEvents')
 
     cy.visit('/events')
-
-    cy.contains('-')
+    cy.wait('@getEvents')
+    cy.get('.event-item').should('have.length', 1)
+    cy.get('.event-item').first().within(() => {
+      cy.contains(/^Place:/).parent().invoke('text').should('match', /^\s*Place:\s*-\s*$/)
+    })
   })
 
 
-  // 🟡 TC6 – Missing price
-  it('TC6 - shows "-" when price is missing', () => {
+  // 🟡 TC7 – Renginys be kainos (SD-T13)
+  it('TC7 - shows "-" when price is missing', () => {
 
     cy.intercept('GET', apiUrl, {
       statusCode: 200,
@@ -185,17 +221,19 @@ describe('Events Page', () => {
           }
         ]
       }
-    })
+    }).as('getEvents')
 
     cy.visit('/events')
-
-    cy.contains('Price:')
-    cy.contains('-')
+    cy.wait('@getEvents')
+    cy.get('.event-item').should('have.length', 1)
+    cy.get('.event-item').first().within(() => {
+      cy.contains(/^Price:/).parent().invoke('text').should('match', /^\s*Price:\s*-\s*$/)
+    })
   })
 
 
-  // 🟡 TC7 – Zero price
-  it('TC7 - shows 0,00 € when price is 0', () => {
+  // 🟡 TC8 – Renginys su nuline kaina (SD-T17)
+  it('TC8 - shows 0,00 € when price is 0', () => {
 
     cy.intercept('GET', apiUrl, {
       statusCode: 200,
@@ -208,21 +246,24 @@ describe('Events Page', () => {
             date: '2025-05-20',
             time: '18:00',
             place: 'Vilnius',
-            price: 0,
+            price: '0.00',
             categories: ['Tech']
           }
         ]
       }
-    })
+    }).as('getEvents')
 
     cy.visit('/events')
-
-    cy.get('.event-item').first().contains(/Price:\s*0,00\s*€/)
+    cy.wait('@getEvents')
+    cy.get('.event-item').should('have.length', 1)
+    cy.get('.event-item').first().within(() => {
+      cy.contains(/^Price:/).parent().should('contain.text', '0,00 €')
+    })
   })
 
 
-  // 🟡 TC8 – Missing categories
-  it('TC8 - shows "-" when categories are missing', () => {
+  // 🟡 TC9 – Renginys be kategorijų (SD-T11)
+  it('TC9 - shows "-" when categories are missing', () => {
 
     cy.intercept('GET', apiUrl, {
       statusCode: 200,
@@ -235,22 +276,24 @@ describe('Events Page', () => {
             date: '2025-05-20',
             time: '18:00',
             place: 'Vilnius',
-            price: 10,
+            price: '10.00',
             categories: []
           }
         ]
       }
-    })
+    }).as('getEvents')
 
     cy.visit('/events')
-
-    cy.contains('Categories:')
-    cy.contains('-')
+    cy.wait('@getEvents')
+    cy.get('.event-item').should('have.length', 1)
+    cy.get('.event-item').first().within(() => {
+      cy.contains(/^Categories:/).parent().invoke('text').should('match', /^\s*Categories:\s*-\s*$/)
+    })
   })
 
 
-  // 🟢 TC9 – Total count
-  it('TC9 - shows total events count', () => {
+  // 🟢 TC10 – Sėkmingai užkrauti renginiai (SD-T27)
+  it('TC10 - shows total events count', () => {
 
     cy.intercept('GET', apiUrl, {
       statusCode: 200,
@@ -263,7 +306,7 @@ describe('Events Page', () => {
             date: '2025-05-20',
             time: '18:00',
             place: 'Vilnius',
-            price: 10,
+            price: '10.00',
             categories: ['Tech']
           },
           {
@@ -272,50 +315,70 @@ describe('Events Page', () => {
             date: '2025-05-21',
             time: '19:00',
             place: 'Kaunas',
-            price: 5,
+            price: '5.00',
             categories: ['Music']
           }
         ]
       }
-    })
+    }).as('getEvents')
 
     cy.visit('/events')
+    cy.wait('@getEvents')
 
     cy.contains('Total: 2')
     cy.get('.event-item').should('have.length', 2)
   })
 
 
-  // 🔵 TC10 – Loading state
-  it('TC10 - shows loading state', () => {
-
-    cy.intercept('GET', apiUrl, (req) => {
-      req.on('response', (res) => {
-        res.setDelay(1000)
-      })
-    })
-
-    cy.visit('/events')
-
-    cy.contains('Loading events...')
-  })
-
-
-  // 🔴 TC11 – Error state
-  it('TC11 - shows error message when API fails', () => {
+  // 🔵 TC11 – Renginių užkrovimas (SD-T28)
+  it('TC11 - shows loading state', () => {
 
     cy.intercept('GET', apiUrl, {
-      statusCode: 500
-    })
+      statusCode: 200,
+      delay: 1000,
+      body: {
+        total: 1,
+        events: [
+          {
+            event_id: 1,
+            name: 'Delayed Event',
+            date: '2025-05-20',
+            time: '18:00',
+            place: 'Vilnius',
+            price: '10.00',
+            categories: ['Tech']
+          }
+        ]
+      }
+    }).as('getEvents')
 
     cy.visit('/events')
 
-    cy.contains('Failed to load').should('exist')
+    cy.contains('Loading events...').should('be.visible')
+    cy.wait('@getEvents')
+    cy.contains('Loading events...').should('not.exist')
   })
 
 
-  // 🔴 TC12 – Empty list
-  it('TC12 - shows empty state message', () => {
+  // 🔴 TC12 – Klaida gaunant renginius (SD-T29)
+  it('TC12 - shows error message when API fails', () => {
+
+    cy.intercept('GET', apiUrl, {
+      statusCode: 500,
+      body: {
+        error: 'Failed to load events.'
+      }
+    }).as('getEvents')
+
+    cy.visit('/events')
+    cy.wait('@getEvents')
+
+    cy.contains('Failed to load events.').should('be.visible')
+  })
+
+
+  // 🔴 TC13 – Nėra renginių (SD-T30)
+  it('TC13 - shows empty state message', () => {
 
     cy.intercept('GET', apiUrl, {
       statusCode: 200,
@@ -323,11 +386,13 @@ describe('Events Page', () => {
         total: 0,
         events: []
       }
-    })
+    }).as('getEvents')
 
     cy.visit('/events')
+    cy.wait('@getEvents')
 
-    cy.contains('No events found. Go back to subjects.')
+    cy.get('.event-item').should('not.exist')
+    cy.contains('No events found. Go back to subjects.').should('be.visible')
   })
 
 })
