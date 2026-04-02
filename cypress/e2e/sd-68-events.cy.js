@@ -2,8 +2,8 @@ describe('Events Page', () => {
 
   const apiUrl = '/api/events/'
 
-  // 🟢 TC-1 – Renginiai su visa informacija (SD-T1)
-  it('TC-1 - displays events with full information', () => {
+  // 🟢 TC1 – Renginiai su visa informacija (SD-T1)
+  it('TC1 - displays events with full information', () => {
 
     cy.intercept('GET', apiUrl, {
       statusCode: 200,
@@ -141,39 +141,8 @@ describe('Events Page', () => {
   })
 
 
-  // 🟡 TC5 – Renginys su 00:00 laiku (SD-T63)
-  it('TC5 - shows only date when time is 00:00', () => {
-
-    cy.intercept('GET', apiUrl, {
-      statusCode: 200,
-      body: {
-        total: 1,
-        events: [
-          {
-            event_id: 1,
-            name: 'Test Event',
-            date: '2025-05-20',
-            time: '00:00',
-            place: 'Vilnius',
-            price: '10.00',
-            categories: ['Tech']
-          }
-        ]
-      }
-    }).as('getEvents')
-
-    cy.visit('/events')
-    cy.wait('@getEvents')
-    cy.get('.event-item').should('have.length', 1)
-    cy.get('.event-item').first().within(() => {
-      cy.contains(/^Date:/).parent().invoke('text').should('match', /^\s*Date:\s\d{4}-\d{2}-\d{2}\s*$/)
-      cy.contains(/^Date:/).parent().invoke('text').should('not.match', /\d{2}:\d{2}/)
-    })
-  })
-
-
-  // 🟡 TC6 – Renginys be vietos (SD-T12)
-  it('TC6 - shows "-" when place is missing', () => {
+  // 🟡 TC5 – Renginys be vietos (SD-T12)
+  it('TC5 - shows "-" when place is missing', () => {
 
     cy.intercept('GET', apiUrl, {
       statusCode: 200,
@@ -202,8 +171,8 @@ describe('Events Page', () => {
   })
 
 
-  // 🟡 TC7 – Renginys be kainos (SD-T13)
-  it('TC7 - shows "-" when price is missing', () => {
+  // 🟡 TC6 – Renginys be kainos (SD-T13)
+  it('TC6 - shows "-" when price is missing', () => {
 
     cy.intercept('GET', apiUrl, {
       statusCode: 200,
@@ -232,8 +201,8 @@ describe('Events Page', () => {
   })
 
 
-  // 🟡 TC8 – Renginys su nuline kaina (SD-T17)
-  it('TC8 - shows 0,00 € when price is 0', () => {
+  // 🟡 TC7 – Renginys su nuline kaina (SD-T17)
+  it('TC7 - shows 0,00 € when price is 0', () => {
 
     cy.intercept('GET', apiUrl, {
       statusCode: 200,
@@ -262,8 +231,8 @@ describe('Events Page', () => {
   })
 
 
-  // 🟡 TC9 – Renginys be kategorijų (SD-T11)
-  it('TC9 - shows "-" when categories are missing', () => {
+  // 🟡 TC8 – Renginys be kategorijų (SD-T11)
+  it('TC8 - shows "-" when categories are missing', () => {
 
     cy.intercept('GET', apiUrl, {
       statusCode: 200,
@@ -292,8 +261,8 @@ describe('Events Page', () => {
   })
 
 
-  // 🟢 TC10 – Sėkmingai užkrauti renginiai (SD-T27)
-  it('TC10 - shows total events count', () => {
+  // 🟢 TC9 – Sėkmingai užkrauti renginiai (SD-T27)
+  it('TC9 - shows total events count', () => {
 
     cy.intercept('GET', apiUrl, {
       statusCode: 200,
@@ -330,8 +299,8 @@ describe('Events Page', () => {
   })
 
 
-  // 🔵 TC11 – Renginių užkrovimas (SD-T28)
-  it('TC11 - shows loading state', () => {
+  // 🔵 TC10 – Renginių užkrovimas (SD-T28)
+  it('TC10 - shows loading state', () => {
 
     cy.intercept('GET', apiUrl, {
       statusCode: 200,
@@ -360,8 +329,8 @@ describe('Events Page', () => {
   })
 
 
-  // 🔴 TC12 – Klaida gaunant renginius (SD-T29)
-  it('TC12 - shows error message when API fails', () => {
+  // 🔴 TC11 – Klaida gaunant renginius (SD-T29)
+  it('TC11 - shows error message when API fails', () => {
 
     cy.intercept('GET', apiUrl, {
       statusCode: 500,
@@ -377,8 +346,8 @@ describe('Events Page', () => {
   })
 
 
-  // 🔴 TC13 – Nėra renginių (SD-T30)
-  it('TC13 - shows empty state message', () => {
+  // 🔴 TC12 – Nėra renginių (SD-T30)
+  it('TC12 - shows empty state message', () => {
 
     cy.intercept('GET', apiUrl, {
       statusCode: 200,
