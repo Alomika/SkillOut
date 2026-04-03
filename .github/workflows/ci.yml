@@ -4,8 +4,22 @@ on:
   push:
     branches:
       - main
-      - master
+      - develop
+      - "SD-68*-*"
+    paths:
+      - frontend/**
+      - cypress/**
+      - package-lock.json
+      - frontend/package-lock.json
   pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - frontend/**
+      - cypress/**
+      - package-lock.json
+      - frontend/package-lock.json
   workflow_dispatch:
 
 jobs:
