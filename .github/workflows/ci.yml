@@ -6,6 +6,8 @@ on:
       - main
       - develop
       - "SD-68*-*"
+      - "SD-59*-*"
+      - "SD-60*-*"
     paths:
       - frontend/**
       - cypress/**
