@@ -3,6 +3,36 @@
     <section class="card">
       <h1>Events</h1>
 
+      <!-- Filters -->
+      <div class="filters">
+        <div class="filter-group">
+          <label for="city">Miestas:</label>
+          <select id="city" v-model="filters.city" @change="applyFilters">
+            <option v-for="city in cities" :key="city" :value="city === 'Visi' ? '' : city">{{ city }}</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label for="minPrice">Kaina nuo:</label>
+          <input type="number" id="minPrice" v-model="filters.minPrice" @input="applyFilters" placeholder="0">
+        </div>
+
+        <div class="filter-group">
+          <label for="maxPrice">Kaina iki:</label>
+          <input type="number" id="maxPrice" v-model="filters.maxPrice" @input="applyFilters" placeholder="1000">
+        </div>
+
+        <div class="filter-group">
+          <label for="startDate">Data nuo:</label>
+          <input type="date" id="startDate" v-model="filters.startDate" @change="applyFilters">
+        </div>
+
+        <div class="filter-group">
+          <label for="endDate">Data iki:</label>
+          <input type="date" id="endDate" v-model="filters.endDate" @change="applyFilters">
+        </div>
+      </div>
+
       <p v-if="loading" class="state">Loading events...</p>
       <p v-else-if="error" class="error-message">{{ error }}</p>
       <p v-else class="state">Total: {{ total }}</p>
@@ -49,6 +79,14 @@ export default {
       error: "",
       modalVisible: false,
       selectedEvent: null,
+      filters: {
+        city: "",
+        minPrice: "",
+        maxPrice: "",
+        startDate: "",
+        endDate: "",
+      },
+      cities: ["Visi", "Vilnius", "Kaunas", "Klaipėda", "Šiauliai", "Panevėžys", "Nuotolinis"],
     };
   },
   methods: {
@@ -77,10 +115,22 @@ export default {
     this.modalVisible = false;
     this.selectedEvent = null;
   },
-},
-  async mounted() {
+  async loadEvents() {
+    this.loading = true;
+    this.error = "";
     try {
-      const response = await fetch("/api/events/");
+      const hasFilters = this.filters.city || this.filters.minPrice || this.filters.maxPrice || this.filters.startDate || this.filters.endDate;
+      let url = "/api/events/";
+      if (hasFilters) {
+        const params = new URLSearchParams();
+        if (this.filters.city) params.append('city', this.filters.city);
+        if (this.filters.minPrice) params.append('min_price', this.filters.minPrice);
+        if (this.filters.maxPrice) params.append('max_price', this.filters.maxPrice);
+        if (this.filters.startDate) params.append('start_date', this.filters.startDate);
+        if (this.filters.endDate) params.append('end_date', this.filters.endDate);
+        url = `/api/events/filter/?${params.toString()}`;
+      }
+      const response = await fetch(url);
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
@@ -94,6 +144,13 @@ export default {
     } finally {
       this.loading = false;
     }
+  },
+  applyFilters() {
+    this.loadEvents();
+  },
+},
+  async mounted() {
+    await this.loadEvents();
   }
 };
 </script>
@@ -104,6 +161,35 @@ export default {
   display: grid;
   place-items: center;
   background: linear-gradient(135deg, #f3f8ff 0%, #e3f2eb 100%);
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 150px;
+}
+
+.filter-group label {
+  margin-bottom: 0.5rem;
+  font-weight: bold;
+}
+
+.filter-group input,
+.filter-group select {
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+}
   padding: 1rem;
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
