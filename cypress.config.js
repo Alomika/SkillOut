@@ -10,7 +10,7 @@ const {
 module.exports = defineConfig({
   allowCypressEnv: true,
   e2e: {
-    baseUrl: process.env.CYPRESS_BASE_URL,
+    baseUrl: process.env.CYPRESS_BASE_URL || "http://localhost:5173",
     specPattern: [
       "cypress/e2e/**/*.feature",
       "cypress/e2e/**/*.cy.{js,jsx,ts,tsx}",
