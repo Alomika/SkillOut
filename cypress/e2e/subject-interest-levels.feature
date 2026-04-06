@@ -40,7 +40,7 @@ Feature: Subject interest level selection and persistence
     Then I should see a save confirmation message
     And "Operating Systems" should show 5 stars
 
-  Scenario: Selected rating cannot be nulled by re-clicking the same star
+  Scenario: Failing case - selected rating cannot be nulled by re-clicking the same star
     When I set "Mathematics" to 5 stars
     And I set "Mathematics" to 5 stars
     Then "Mathematics" should show 5 stars
