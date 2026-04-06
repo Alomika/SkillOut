@@ -6,6 +6,8 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": "http://localhost:8000",
+      "/student": "http://localhost:8000",
+      "/add-interest": "http://localhost:8000",
     },
   },
 });

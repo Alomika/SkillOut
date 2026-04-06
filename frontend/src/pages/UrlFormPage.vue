@@ -210,6 +210,8 @@ export default {
             throw new Error(data.error || "Request failed");
           }
 
+          this.$router.push("/subjects");
+          
           this.submittedInfo = {
             url: data.url || this.url || "latest_scrape.txt",
             from: this.fromSemester,
@@ -277,6 +279,7 @@ input {
   border-radius: 8px;
   font-size: 1rem;
   width: 100%;
+  box-sizing: border-box;
 }
 
 input:focus {
@@ -388,6 +391,7 @@ button:disabled {
 
 .field {
   flex: 1;
+  min-width: 0;
 }
 
 .save-ratings-wrapper {

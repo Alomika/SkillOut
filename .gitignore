@@ -55,6 +55,9 @@ Thumbs.db
 *.log
 logs/
 
+# Node
+node_modules/
+
 # Static & Media files
 staticfiles/
 /static/
@@ -65,8 +68,25 @@ staticfiles/
 .coverage
 htmlcov/
 
+# Cypress
+cypress/screenshots/
+cypress/videos/
+cypress/downloads/
+cypress/results/
+cypress.env.json
+
 # Environment variables
 .env
 .env.local
 .env.*.local
-# noop commit marker
+frontend/.vite/deps/_metadata.json
+frontend/.vite/deps/chunk-RZZXYUDO.js
+frontend/.vite/deps/chunk-RZZXYUDO.js.map
+frontend/.vite/deps/package.json
+frontend/.vite/deps/vue-router.js
+frontend/.vite/deps/vue-router.js.map
+frontend/.vite/deps/vue.js
+frontend/.vite/deps/vue.js.map
+
+# Scraped outputs
+scraped_text/
