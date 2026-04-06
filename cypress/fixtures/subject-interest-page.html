@@ -185,10 +185,18 @@
         ];
         
         const ratings = {};
+
+        function normalizeRating(value) {
+            const parsed = Number(value);
+            if (!Number.isFinite(parsed)) {
+                return 1;
+            }
+            return Math.min(5, Math.max(1, parsed));
+        }
         
         // Initialize ratings storage
         subjects.forEach(s => {
-            ratings[s.name] = 0;
+            ratings[s.name] = 1;
         });
         
         function renderSubjects() {
@@ -203,7 +211,7 @@
                                 <span class="star" data-value="${star}" onclick="selectRating('${subject.name}', ${star})">★</span>
                             `).join('')}
                         </div>
-                        <div class="rating-value" id="rating-${subject.name}">0</div>
+                        <div class="rating-value" id="rating-${subject.name}">1</div>
                     </div>
                 </div>
             `).join('');
@@ -212,26 +220,32 @@
         }
         
         function selectRating(subject, value) {
-            ratings[subject] = value;
+            ratings[subject] = normalizeRating(value);
             updateStarDisplay();
-            saveToLocalStorage();
         }
         
         function saveToLocalStorage() {
+            subjects.forEach(s => {
+                ratings[s.name] = normalizeRating(ratings[s.name]);
+            });
             localStorage.setItem('subjectRatings', JSON.stringify(ratings));
         }
         
         function loadFromLocalStorage() {
             const saved = localStorage.getItem('subjectRatings');
             if (saved) {
-                Object.assign(ratings, JSON.parse(saved));
+                const parsed = JSON.parse(saved);
+                subjects.forEach(s => {
+                    ratings[s.name] = normalizeRating(parsed[s.name]);
+                });
             }
         }
         
         function updateStarDisplay() {
             subjects.forEach(subject => {
                 const starElements = document.querySelectorAll(`[data-subject="${subject.name}"] .star`);
-                const rating = ratings[subject.name];
+                const rating = normalizeRating(ratings[subject.name]);
+                ratings[subject.name] = rating;
                 
                 starElements.forEach(star => {
                     const value = parseInt(star.dataset.value);
@@ -248,7 +262,7 @@
         
         function resetRatings() {
             subjects.forEach(s => {
-                ratings[s.name] = 0;
+                ratings[s.name] = 1;
             });
             localStorage.removeItem('subjectRatings');
             updateStarDisplay();
