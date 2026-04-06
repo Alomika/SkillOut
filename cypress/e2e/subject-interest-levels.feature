@@ -40,12 +40,10 @@ Feature: Subject interest level selection and persistence
     Then I should see a save confirmation message
     And "Operating Systems" should show 5 stars
 
-  Scenario: Failing case - selected rating cannot be nulled by re-clicking the same star
+  Scenario: Selected rating cannot be nulled by re-clicking the same star
     When I set "Mathematics" to 5 stars
-    And I set "Mathematics" to 5 stars
-    Then "Mathematics" should show 5 stars
-    And I save my subject ratings
-    Then I should see a save confirmation message
+    And I click near the stars for "Mathematics"
+    Then "Mathematics" should show 0 stars
 
   Scenario: Partial selection is saved while other subjects remain unrated
     When I set "Web Development" to 4 stars

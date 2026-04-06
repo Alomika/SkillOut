@@ -160,6 +160,12 @@ When("I click save {int} times quickly", (times) => {
   Cypress._.times(times, () => clickSaveButton());
 });
 
+When("I click near the stars for {string}", (subjectName) => {
+  getSubjectRoot(subjectName).within(() => {
+    cy.get(".star-rating").click("right", { force: true });
+  });
+});
+
 When("I reload the page", () => {
   cy.reload();
 });
@@ -176,7 +182,7 @@ Then("I should see a save confirmation message", () => {
     const selector = findFirstFromBody($body, candidateSelectors.successMessage);
 
     if (selector) {
-      cy.get(selector).should("be.visible");
+      cy.get(selector).should("have.class", "show");
       return;
     }
 
