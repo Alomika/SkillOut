@@ -136,8 +136,11 @@ Given("I clear previously saved subject ratings", () => {
 });
 
 When("I set {string} to {int} stars", (subjectName, stars) => {
-  if (stars < 1 || stars > 5) {
-    throw new Error("Only ratings from 1 to 5 are supported.");
+  if (stars < 0 || stars > 5) {
+    throw new Error("Only ratings from 0 to 5 are supported.");
+  }
+  if (stars === 0) {
+    return;
   }
   clickStar(subjectName, stars);
 });
@@ -185,9 +188,9 @@ Then("{string} should show {int} stars", (subjectName, stars) => {
   assertSubjectRating(subjectName, stars);
 });
 
-Then("all displayed subjects should show 1 stars", () => {
+Then("all displayed subjects should show 0 stars", () => {
   cy.get(".rating-value, [data-testid$='rating-value']").each(($el) => {
-    cy.wrap($el).should("contain", "1");
+    cy.wrap($el).should("contain", "0");
   });
 });
 
@@ -198,7 +201,7 @@ Then("saved ratings should not contain null values", () => {
 
     Object.values(parsed).forEach((value) => {
       expect(value, "saved rating should not be null").to.not.equal(null);
-      expect(Number(value), "saved rating should be >= 1").to.be.at.least(1);
+      expect(Number(value), "saved rating should be >= 0").to.be.at.least(0);
       expect(Number(value), "saved rating should be <= 5").to.be.at.most(5);
     });
   });

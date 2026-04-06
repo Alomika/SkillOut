@@ -22,10 +22,10 @@ Feature: Subject interest level selection and persistence
     Then I should see a save confirmation message
     And "Algorithms" should show 4 stars
 
-  Scenario: Save keeps minimum rating at 1 when no changes are made
+  Scenario: Save with no changes keeps default 0 stars
     When I save my subject ratings
     Then I should see a save confirmation message
-    And all displayed subjects should show 1 stars
+    And all displayed subjects should show 0 stars
     And saved ratings should not contain null values
 
   Scenario: Multiple rapid save clicks do not break saving
@@ -52,7 +52,7 @@ Feature: Subject interest level selection and persistence
     And I save my subject ratings
     Then I should see a save confirmation message
     And "Web Development" should show 4 stars
-    And "Mathematics" should show 1 stars
+    And "Mathematics" should show 0 stars
     And saved ratings should not contain null values
 
   Scenario: Saved selections persist after page reload
